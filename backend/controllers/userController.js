@@ -1,13 +1,15 @@
 const User = require("../models/userModel");
-const upload = require("../multer");
+const upload = require("multer")();
 const path = require("path");
 const crypto = require("crypto");
 
 exports.getProfilePicture = async (req, res) => {
   try {
     const { userName } = req.params;
-    // Find the user by token
+
+    // Find the user by username
     const user = await User.findOne({ userName });
+
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
@@ -21,17 +23,18 @@ exports.getProfilePicture = async (req, res) => {
     const filePath = path.join(
       __dirname,
       "..",
-      "uploads/profile_pics",
+      "uploads",
+      "profile_pics",
       user.profilePicture
     );
 
-    // Send the file
+    // Send the file if it exists
     return res.sendFile(filePath);
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ msg: "Server error" });
   }
 };
-
 exports.getUserData = async (req, res) => {
   try {
     const { userName, token, nickname } = req.body;

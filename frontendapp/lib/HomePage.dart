@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontendapp/UserScreen.dart';
 import 'package:frontendapp/upload_video_page.dart';
 import 'package:frontendapp/video_player_page.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
@@ -13,7 +14,7 @@ class Homepage extends StatelessWidget {
     return [
       UploadVideoPage(),
       VideoStreamPage(),
-      Screen3(),
+      Userscreen(),
     ];
   }
 
@@ -21,22 +22,19 @@ class Homepage extends StatelessWidget {
   List<PersistentBottomNavBarItem> _navBarItems() {
     return [
       PersistentBottomNavBarItem(
-        icon: Icon(Icons.home),
-        title: "Home",
-        activeColorPrimary: Colors.blue,
-        inactiveColorPrimary: Colors.grey,
+        icon: Icon(Icons.add),
+        activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
+        inactiveColorPrimary: Colors.white,
       ),
       PersistentBottomNavBarItem(
         icon: Icon(Icons.search),
-        title: "Search",
-        activeColorPrimary: Colors.blue,
-        inactiveColorPrimary: Colors.grey,
+        activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
+        inactiveColorPrimary: Colors.white,
       ),
       PersistentBottomNavBarItem(
         icon: Icon(Icons.notifications),
-        title: "Notifications",
-        activeColorPrimary: Colors.blue,
-        inactiveColorPrimary: Colors.grey,
+        activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
+        inactiveColorPrimary: Colors.white,
       ),
     ];
   }
@@ -48,10 +46,15 @@ class Homepage extends StatelessWidget {
       controller: _controller,
       screens: _buildScreens(),
       items: _navBarItems(),
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(171, 41, 41, 41),
       hideNavigationBarWhenKeyboardAppears: true,
       popBehaviorOnSelectedNavBarItemPress: PopBehavior.all,
-      navBarStyle: NavBarStyle.style9,
+      decoration: NavBarDecoration(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
+      margin: EdgeInsets.fromLTRB(45, 30, 45, 30),
+      navBarStyle: NavBarStyle.style6,
     );
   }
 }

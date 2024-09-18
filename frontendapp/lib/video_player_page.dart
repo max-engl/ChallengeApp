@@ -28,10 +28,10 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
 
   Future<void> _initializeVideoPlayer({bool first = false}) async {
     int nextIndex = _currentIndex + 1;
-    final urlone = "http://192.168.178.88:3005/api/videos/video/$_currentIndex";
-    final urltwo = "http://192.168.178.88:3005/api/videos/video/$nextIndex";
+    final urlone = "http://192.168.178.98:3005/api/videos/video/$_currentIndex";
+    final urltwo = "http://192.168.178.98:3005/api/videos/video/$nextIndex";
     final metadataUrl =
-        "http://192.168.178.88:3005/api/videos/videoData/$_currentIndex";
+        "http://192.168.178.98:3005/api/videos/videoData/$_currentIndex";
 
     try {
       // Dispose of the old controllers properly

@@ -1,5 +1,5 @@
 const User = require("../models/userModel");
-const upload = require("../multer");
+const upload = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -24,7 +24,7 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-exports.uploadProfilePicture = upload.single("profilePic");
+exports.uploadProfilePicture = upload().single("profilePic");
 
 // Register user with profile picture
 exports.registerUser = async (req, res) => {
@@ -47,7 +47,11 @@ exports.registerUser = async (req, res) => {
     let profilePicture = "";
     if (req.file) {
       profilePicture = req.file.filename;
+      console.log("GOTFILE " + profilePicture);
+    } else {
+      console.log("GOT NO FILE");
     }
+
     const token = crypto.randomBytes(64).toString("hex");
     // Create a new user
     const newUser = new User({

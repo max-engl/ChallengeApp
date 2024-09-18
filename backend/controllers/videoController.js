@@ -3,13 +3,13 @@ const fs = require("fs");
 const Video = require("../models/videoModel");
 const ffmpeg = require("fluent-ffmpeg");
 
-//ffmpeg.setFfprobePath(
-// "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
-//);
-//ffmpeg.setFfmpegPath(
-// "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
-//);
-// List all videos
+ffmpeg.setFfprobePath(
+  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
+);
+ffmpeg.setFfmpegPath(
+  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
+);
+
 exports.getAllVideos = async (req, res) => {
   try {
     const videos = await Video.find();
@@ -174,7 +174,7 @@ exports.getVideoWithIndex = async (req, res) => {
     const fileSize = stat.size;
     const range = req.headers.range;
 
-    const CHUNK_SIZE = .1 * 1024 * 1024; // 0.5MB
+    const CHUNK_SIZE = 0.5 * 1024 * 1024; // 0.5MB
 
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
