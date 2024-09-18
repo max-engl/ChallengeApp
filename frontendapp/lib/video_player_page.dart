@@ -12,60 +12,85 @@ class VideoStreamPage extends StatefulWidget {
 }
 
 class _VideoStreamPageState extends State<VideoStreamPage> {
-  VideoPlayerController? _controller;
+  List<VideoPlayerController> _controllers = [];
   bool _isBuffering = true;
   int _currentIndex = 0;
   final PageController _pageController = PageController(viewportFraction: 1.0);
-  final List<int> _videoIndices = List.generate(10, (index) => index);
+  final List<int> _videoIndices = List.generate(2, (index) => index);
   Map<String, String>? _currentVideoData; // Holds metadata
 
   @override
   void initState() {
     super.initState();
-    _initializeVideoPlayer();
+    _initializeVideoPlayer(first: true);
     _pageController.addListener(_onPageScroll);
   }
 
-  Future<void> _initializeVideoPlayer({bool loadImmediately = true}) async {
-    final url = "http://192.168.178.98:3005/api/videos/video/$_currentIndex";
+  Future<void> _initializeVideoPlayer({bool first = false}) async {
+    int nextIndex = _currentIndex + 1;
+    final urlone = "http://192.168.178.88:3005/api/videos/video/$_currentIndex";
+    final urltwo = "http://192.168.178.88:3005/api/videos/video/$nextIndex";
     final metadataUrl =
-        "http://192.168.178.98:3005/api/videos/metadata/$_currentIndex";
+        "http://192.168.178.88:3005/api/videos/videoData/$_currentIndex";
 
     try {
-      print('Requesting video $_currentIndex from server: $url');
-
-      if (_controller != null && _controller!.value.isInitialized) {
-        await _controller!.dispose();
+      // Dispose of the old controllers properly
+      if (_controllers.length > 0) {
+        for (var controller in _controllers) {
+          if (controller.value.isInitialized) {
+            controller.removeListener(() {}); // Remove all listeners
+            controller.dispose();
+          }
+        }
+        _controllers.clear();
       }
 
-      _controller = VideoPlayerController.network(url)
+      // Initialize new controllers
+      _controllers.add(VideoPlayerController.network(urlone)
         ..addListener(() {
-          if (_controller!.value.isBuffering) {
+          if (_controllers[0].value.isBuffering) {
             setState(() {
               _isBuffering = true;
             });
-          } else if (_controller!.value.isInitialized) {
+          } else if (_controllers[0].value.isInitialized) {
             setState(() {
               _isBuffering = false;
             });
           }
-        });
+        }));
 
-      if (loadImmediately) {
-        await _controller!.initialize();
-        setState(() {
-          _isBuffering = false;
-        });
-        _controller?.play();
-      }
+      _controllers.add(VideoPlayerController.network(urltwo)
+        ..addListener(() {
+          if (_controllers[1].value.isBuffering) {
+            setState(() {
+              _isBuffering = true;
+            });
+          } else if (_controllers[1].value.isInitialized) {
+            setState(() {
+              _isBuffering = false;
+            });
+          }
+        }));
+
+      await Future.wait([
+        _controllers[0].initialize(),
+        _controllers[1].initialize(),
+      ]);
+
+      setState(() {
+        _isBuffering = false;
+      });
+
+      _controllers[0].play(); // Start playing the current video
 
       // Fetch video metadata
       final response = await http.get(Uri.parse(metadataUrl));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
         setState(() {
           _currentVideoData = {
-            'username': data['username'],
+            'username': data['userName'],
             'description': data['description'],
           };
         });
@@ -82,7 +107,9 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
     _pageController.dispose();
     super.dispose();
   }
@@ -102,7 +129,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
         if (page >= _videoIndices.length - 1) {
           setState(() {
             _videoIndices.addAll(
-                List.generate(10, (index) => _videoIndices.length + index));
+                List.generate(3, (index) => _videoIndices.length + index));
           });
         }
       }
@@ -110,12 +137,12 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   }
 
   void _togglePlayPause() {
-    if (_controller != null) {
+    if (_controllers.isNotEmpty && _controllers[0].value.isInitialized) {
       setState(() {
-        if (_controller!.value.isPlaying) {
-          _controller?.pause();
+        if (_controllers[0].value.isPlaying) {
+          _controllers[0].pause();
         } else {
-          _controller?.play();
+          _controllers[0].play();
         }
       });
     }
@@ -146,40 +173,41 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           child: Container(
             color: Colors.black,
             child: Center(
-              child: _controller != null && _controller!.value.isInitialized
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _controller!.value.size.width,
-                            height: _controller!.value.size.height,
-                            child: VideoPlayer(_controller!),
-                          ),
-                        ),
-                        if (_isBuffering)
-                          const Center(child: CircularProgressIndicator()),
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: VideoProgressIndicator(
-                            _controller!,
-                            allowScrubbing: true,
-                            colors: const VideoProgressColors(
-                              playedColor: Colors.red,
-                              backgroundColor: Colors.black54,
-                              bufferedColor: Colors.grey,
+              child:
+                  _controllers.isNotEmpty && _controllers[0].value.isInitialized
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.cover,
+                              child: SizedBox(
+                                width: _controllers[0].value.size.width,
+                                height: _controllers[0].value.size.height,
+                                child: VideoPlayer(_controllers[0]),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : const Center(child: CircularProgressIndicator()),
+                            if (_isBuffering)
+                              const Center(child: CircularProgressIndicator()),
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: VideoProgressIndicator(
+                                _controllers[0],
+                                allowScrubbing: true,
+                                colors: const VideoProgressColors(
+                                  playedColor: Colors.red,
+                                  backgroundColor: Colors.black54,
+                                  bufferedColor: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Center(child: CircularProgressIndicator()),
             ),
           ),
         ),
         Positioned(
-          bottom: 100, // Adjust as needed
+          bottom: 100,
           left: 20,
           child: Column(
             children: [
@@ -190,14 +218,14 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                 },
               ),
               Text(
-                '123', // Replace with actual like count
+                '123',
                 style: TextStyle(color: Colors.white),
               ),
             ],
           ),
         ),
         Positioned(
-          bottom: 100, // Adjust as needed
+          bottom: 100,
           right: 20,
           child: Column(
             children: [
@@ -208,7 +236,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                 },
               ),
               Text(
-                '45', // Replace with actual dislike count
+                '45',
                 style: TextStyle(color: Colors.white),
               ),
             ],
@@ -225,16 +253,14 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _currentVideoData?['username'] ??
-                      'Username', // Replace with actual username
+                  _currentVideoData?['username'] ?? 'Username',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  _currentVideoData?['description'] ??
-                      'Description', // Replace with actual description
+                  _currentVideoData?['description'] ?? 'Description',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ],

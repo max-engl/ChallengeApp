@@ -22,6 +22,6 @@ app.use(
 app.use("/api/videos", videoRoutes);
 
 const PORT = process.env.PORT || 3005;
-app.listen(PORT, "192.168.178.98", () => {
+app.listen(PORT, "192.168.178.88", () => {
   console.log(`Server running on port ${PORT}`);
 });

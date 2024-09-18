@@ -34,7 +34,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     });
 
     var request = http.MultipartRequest(
-        'POST', Uri.parse('http://192.168.178.98:3005/api/videos/upload'));
+        'POST', Uri.parse('http://192.168.178.88:3005/api/videos/upload'));
     request.files.add(await http.MultipartFile.fromPath('video', _video!.path));
     request.fields['title'] = 'My Video';
     request.fields["userName"] = "Max Engl";

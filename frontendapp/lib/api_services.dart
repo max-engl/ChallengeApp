@@ -5,7 +5,7 @@ import './video.dart';
 
 class ApiService {
   static const String apiUrl =
-      'http://192.168.178.169:3005/api/videos'; // Replace with your backend URL
+      'http://192.168.178.88:3005/api/videos'; // Replace with your backend URL
 
   // Fetch all videos from the backend
   static Future<List<Video>> fetchVideos() async {
