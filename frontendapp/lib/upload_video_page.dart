@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
 class UploadVideoPage extends StatefulWidget {
+  const UploadVideoPage({super.key});
+
   @override
   _UploadVideoPageState createState() => _UploadVideoPageState();
 }
@@ -32,10 +34,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     });
 
     var request = http.MultipartRequest(
-        'POST', Uri.parse('http://192.168.178.169:3005/api/videos/upload'));
+        'POST', Uri.parse('http://192.168.178.98:3005/api/videos/upload'));
     request.files.add(await http.MultipartFile.fromPath('video', _video!.path));
     request.fields['title'] = 'My Video';
-
+    request.fields["userName"] = "Max Engl";
+    request.fields["description"] = "Das ist mein erstes Video";
     var response = await request.send();
 
     if (response.statusCode == 201) {
@@ -53,26 +56,26 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Upload Video'),
+        title: const Text('Upload Video'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _video == null
-                ? Text('No video selected')
+                ? const Text('No video selected')
                 : Text('Video selected: ${_video!.path}'),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _pickVideo,
-              child: Text('Pick Video'),
+              child: const Text('Pick Video'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             _isUploading
-                ? CircularProgressIndicator()
+                ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _uploadVideo,
-                    child: Text('Upload Video'),
+                    child: const Text('Upload Video'),
                   ),
           ],
         ),

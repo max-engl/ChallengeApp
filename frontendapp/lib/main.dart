@@ -8,6 +8,8 @@ void main() {
 }
 
 class VideoApp extends StatelessWidget {
+  const VideoApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -21,11 +23,13 @@ class VideoApp extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Video Upload & Stream'),
+        title: const Text('Video Upload & Stream'),
       ),
       body: Center(
         child: Column(
@@ -38,7 +42,7 @@ class HomePage extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => UploadVideoPage()),
                 );
               },
-              child: Text('Upload Video'),
+              child: const Text('Upload Video'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -47,7 +51,7 @@ class HomePage extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => VideoStreamPage()),
                 );
               },
-              child: Text('Play Video'),
+              child: const Text('Play Video'),
             ),
           ],
         ),
