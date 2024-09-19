@@ -1,14 +1,16 @@
 const path = require("path");
 const fs = require("fs");
 const Video = require("../models/videoModel");
+const Like = require("../models/likeModel")
+const Dislike = require("../models/dislikeModel")
 const ffmpeg = require("fluent-ffmpeg");
 
-ffmpeg.setFfprobePath(
-  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
-);
-ffmpeg.setFfmpegPath(
-  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
-);
+//ffmpeg.setFfprobePath(
+//  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
+//);
+//ffmpeg.setFfmpegPath(
+//  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
+//);
 
 exports.getAllVideos = async (req, res) => {
   try {
@@ -18,7 +20,68 @@ exports.getAllVideos = async (req, res) => {
     res.status(500).json({ msg: "Error fetching videos" });
   }
 };
+exports.dislikeVideo = async (req, res) => {
+  try {
+    const { userId, videoId } = req.body;
 
+    const existingLike = await Like.findOne({ userId, videoId });
+
+    if (existingLike) {
+      await Like.deleteOne({ userId, videoId });
+      await Video.findByIdAndUpdate(videoId, { $inc: { likes: -1 } });
+    }
+
+    // Check for existing like
+    const existingDislike = await Dislike.findOne({ userId, videoId });
+
+    if (existingDislike) {
+      // If a like exists, remove it and update the likes count
+      await Dislike.deleteOne({ userId, videoId });
+      await Video.findByIdAndUpdate(videoId, { $inc: { dislikes: -1 } });
+      return res.json({ message: 'Dislike removed successfully.' });
+    } else {
+      // If no like exists, create a new like and update the likes count
+      const newDislike = new Dislike({ userId, videoId });
+      await newDislike.save();
+      await Video.findByIdAndUpdate(videoId, { $inc: { dislikes: 1 } });
+      return res.json({ message: 'Video liked successfully.' });
+    }
+  } catch (error) {
+    console.error('Error handling like/unlike:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+exports.likeVideo = async (req, res) => {
+  try {
+    const { userId, videoId } = req.body;
+
+    const existingDislike = await Dislike.findOne({ userId, videoId });
+
+    if (existingDislike) {
+      await Dislike.deleteOne({ userId, videoId });
+      await Video.findByIdAndUpdate(videoId, { $inc: { dislikes: -1 } });
+    }
+
+    // Check for existing like
+    const existingLike = await Like.findOne({ userId, videoId });
+
+    if (existingLike) {
+      // If a like exists, remove it and update the likes count
+      await Like.deleteOne({ userId, videoId });
+      await Video.findByIdAndUpdate(videoId, { $inc: { likes: -1 } });
+      return res.json({ message: 'Like removed successfully.' });
+    } else {
+      // If no like exists, create a new like and update the likes count
+      const newLike = new Like({ userId, videoId });
+      await newLike.save();
+      await Video.findByIdAndUpdate(videoId, { $inc: { likes: 1 } });
+      return res.json({ message: 'Video liked successfully.' });
+    }
+  } catch (error) {
+    console.error('Error handling like/unlike:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 exports.uploadVideo = async (req, res) => {
   try {
     const originalVideoPath = req.file.path;
@@ -56,6 +119,8 @@ exports.uploadVideo = async (req, res) => {
                 videoUrl: `/uploads/videos/resized-${req.file.filename}`,
                 userName: req.body.userName, // Ensure this is correctly passed
                 description: req.body.description, // Ensure this is correctly passed
+                likes: 0,
+                dislikes: 0
               });
               await newVideo.save();
 
@@ -89,6 +154,8 @@ exports.uploadVideo = async (req, res) => {
             videoUrl: `/uploads/videos/${req.file.filename}`,
             userName: req.body.userName, // Ensure this is correctly passed
             description: req.body.description, // Ensure this is correctly passed
+            likes: 0,
+            dislikes: 0
           });
           await newVideo.save();
           res.status(201).json(newVideo);
@@ -126,9 +193,13 @@ exports.getVideoDataIndex = async (req, res) => {
 
     // Return video metadata as JSON
     const videoData = video[0];
+    console.log(videoData);
     res.status(200).json({
+      videoid: videoData._id.toString(),
       userName: videoData.userName,
       description: videoData.description,
+      likes: videoData.likes,
+      dislikes: videoData.dislikes
       // Include any other relevant fields
     });
   } catch (error) {
@@ -147,7 +218,6 @@ exports.getVideoWithIndex = async (req, res) => {
     }
 
     videoIndex = videoIndex % totalVideos;
-    console.log(`Request received for video index: ${videoIndex}`);
 
     const video = await Video.find().skip(videoIndex).limit(1).exec();
 
@@ -164,7 +234,7 @@ exports.getVideoWithIndex = async (req, res) => {
       videoFilename
     );
 
-    console.log(`Serving video from path: ${videoPath}`);
+
 
     if (!fs.existsSync(videoPath)) {
       return res.status(404).send("Video file not found.");
@@ -174,16 +244,15 @@ exports.getVideoWithIndex = async (req, res) => {
     const fileSize = stat.size;
     const range = req.headers.range;
 
-    const CHUNK_SIZE = 0.5 * 1024 * 1024; // 0.5MB
+    const CHUNK_SIZE = 1.2 * 1024 * 1024; // 0.5MB
 
     if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
+      const parts = range.replace(/bytes=/, "").split("-"); a
       const start = parseInt(parts[0], 10);
       const end = parts[1]
         ? parseInt(parts[1], 10)
         : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
 
-      console.log(`Range request for bytes ${start}-${end}`);
 
       if (start >= fileSize) {
         res
@@ -204,7 +273,7 @@ exports.getVideoWithIndex = async (req, res) => {
       res.writeHead(206, head);
       file.pipe(res);
     } else {
-      console.log(`Full video requested for ${videoPath}`);
+
       const head = {
         "Content-Length": fileSize,
         "Content-Type": "video/mp4",
@@ -213,7 +282,6 @@ exports.getVideoWithIndex = async (req, res) => {
       fs.createReadStream(videoPath).pipe(res);
     }
   } catch (error) {
-    console.error("Error fetching video:", error);
     res.status(500).json({ msg: "Error fetching video" });
   }
 };

@@ -37,15 +37,20 @@ class _UserScreenState extends State<Userscreen> {
   @override
   Widget build(BuildContext context) {
     var username = userInfo['username'];
+    var ip = _authService.baseUrl;
     var profilePicUrl = userInfo['username'] != null
-        ? "http://192.168.178.98:3005/api/user/profile-pic/" + username
+        ? "$ip/api/user/profile-pic/" + username
         : null;
 
-    print('Profile Picture URL: $profilePicUrl'); // Debug print
-
     return Scaffold(
+      backgroundColor:
+          const Color.fromARGB(255, 17, 17, 17), // Match background color
       appBar: AppBar(
-        title: Text('User Screen'),
+        title: const Text(
+          'User Screen',
+          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: Colors.transparent,
       ),
       body: Center(
         child: Column(
@@ -56,23 +61,34 @@ class _UserScreenState extends State<Userscreen> {
               radius: 50,
               backgroundImage: profilePicUrl != null && profilePicUrl.isNotEmpty
                   ? NetworkImage(profilePicUrl)
-                  : AssetImage('assets/default_profile.png')
+                  : const AssetImage('assets/default_profile.png')
                       as ImageProvider, // Fallback to default image
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             // Display the username
             Text(
               'Username: $username',
-              style: TextStyle(fontSize: 24),
+              style: const TextStyle(
+                fontSize: 24,
+                color: Colors.grey, // Match the text color
+              ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    const Color.fromARGB(255, 39, 39, 39), // Background color
+                foregroundColor: Colors.grey, // Text color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+              ),
               onPressed: () async {
                 await _authService
                     .logout(); // Correctly invoke the logout function
                 Navigator.pushReplacementNamed(context, "login");
               },
-              child: Text("Logout"),
+              child: const Text("Logout"),
             ),
           ],
         ),

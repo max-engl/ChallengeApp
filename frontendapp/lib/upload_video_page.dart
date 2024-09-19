@@ -55,9 +55,9 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     setState(() {
       _isUploading = true;
     });
-
-    var request = http.MultipartRequest(
-        'POST', Uri.parse('http://192.168.178.98:3005/api/videos/upload'));
+    var ip = _authService.baseUrl;
+    var request =
+        http.MultipartRequest('POST', Uri.parse('$ip/api/videos/upload'));
     request.files.add(await http.MultipartFile.fromPath('video', _video!.path));
     request.fields['title'] = _titleController.text;
     Map<String, dynamic> userInfo = await _authService.loadUserData();
@@ -81,7 +81,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 17, 17, 17),
       appBar: AppBar(
-        title: const Text('Upload Video'),
+        title: const Text(
+          'Upload Video',
+          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: Colors.transparent,
       ),
       body: Padding(
         padding: const EdgeInsets.all(25.0),

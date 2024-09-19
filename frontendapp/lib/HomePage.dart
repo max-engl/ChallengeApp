@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontendapp/StartPage.dart';
 import 'package:frontendapp/UserScreen.dart';
 import 'package:frontendapp/upload_video_page.dart';
 import 'package:frontendapp/video_player_page.dart';
@@ -12,6 +13,7 @@ class Homepage extends StatelessWidget {
 
   List<Widget> _buildScreens() {
     return [
+      Startpage(),
       UploadVideoPage(),
       VideoStreamPage(),
       Userscreen(),
@@ -22,17 +24,22 @@ class Homepage extends StatelessWidget {
   List<PersistentBottomNavBarItem> _navBarItems() {
     return [
       PersistentBottomNavBarItem(
+        icon: Icon(Icons.home),
+        activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
+        inactiveColorPrimary: Colors.white,
+      ),
+      PersistentBottomNavBarItem(
         icon: Icon(Icons.add),
         activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
         inactiveColorPrimary: Colors.white,
       ),
       PersistentBottomNavBarItem(
-        icon: Icon(Icons.search),
+        icon: Icon(Icons.movie),
         activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
         inactiveColorPrimary: Colors.white,
       ),
       PersistentBottomNavBarItem(
-        icon: Icon(Icons.notifications),
+        icon: Icon(Icons.person),
         activeColorPrimary: const Color.fromARGB(255, 188, 255, 144),
         inactiveColorPrimary: Colors.white,
       ),
@@ -50,11 +57,11 @@ class Homepage extends StatelessWidget {
       hideNavigationBarWhenKeyboardAppears: true,
       popBehaviorOnSelectedNavBarItemPress: PopBehavior.all,
       decoration: NavBarDecoration(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
-      margin: EdgeInsets.fromLTRB(45, 30, 45, 30),
+          borderRadius: BorderRadius.circular(0),
+          colorBehindNavBar: Colors.transparent),
       navBarStyle: NavBarStyle.style6,
+
+      // Add the animation here
     );
   }
 }

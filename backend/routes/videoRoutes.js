@@ -15,7 +15,8 @@ const storage = multer.diskStorage({
 });
 
 const fs = require("fs");
-
+router.post("/like", videoController.likeVideo)
+router.post("/dislike", videoController.dislikeVideo)
 router.get("/video/:index", videoController.getVideoWithIndex);
 router.get("/videoData/:index", videoController.getVideoDataIndex);
 router.get("/getAll", videoController.getAllVideos);

@@ -7,10 +7,42 @@ import 'package:http_parser/http_parser.dart';
 
 class AuthService {
   final String baseUrl =
-      'http://192.168.178.98:3005'; // Replace with your actual API URL
+      'http://192.168.178.88:3005'; // Replace with your actual API URL
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
+  }
+
+  Future<bool> dislikeVideo(String videoId) async {
+    final url = Uri.parse('$baseUrl/api/videos/dislike');
+    var token = await getToken();
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': token, 'videoId': videoId}),
+    );
+    if (response.statusCode == 200) {
+      print("disliked succesfull");
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  Future<bool> likeVideo(String videoId) async {
+    final url = Uri.parse('$baseUrl/api/videos/like');
+    var token = await getToken();
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': token, 'videoId': videoId}),
+    );
+    if (response.statusCode == 200) {
+      print("liked succesfull");
+      return true;
+    } else {
+      return false;
+    }
   }
 
   // Login function
@@ -38,7 +70,7 @@ class AuthService {
     if (token != null) {
       // Fetch the user data from your API
       final response = await http.post(
-        Uri.parse('http://192.168.178.98:3005/api/user'),
+        Uri.parse('$baseUrl/api/user'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"token": token}),
       );

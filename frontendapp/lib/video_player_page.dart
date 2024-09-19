@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:frontendapp/services/auth_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:visibility_detector/visibility_detector.dart';
 
 class VideoStreamPage extends StatefulWidget {
   const VideoStreamPage({super.key});
@@ -12,148 +14,126 @@ class VideoStreamPage extends StatefulWidget {
 }
 
 class _VideoStreamPageState extends State<VideoStreamPage> {
-  List<VideoPlayerController> _controllers = [];
-  bool _isBuffering = true;
-  int _currentIndex = 0;
+  final Map<int, VideoPlayerController?> _controllers = {};
   final PageController _pageController = PageController(viewportFraction: 1.0);
-  final List<int> _videoIndices = List.generate(2, (index) => index);
-  Map<String, String>? _currentVideoData; // Holds metadata
+  final List<int> _videoIndices = List.generate(100, (index) => index);
+  Map<String, dynamic>? _currentVideoData;
+  AuthService _authService = AuthService();
+  VideoPlayerController? _currentController;
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideoPlayer(first: true);
+    _initializeControllers();
     _pageController.addListener(_onPageScroll);
   }
 
-  Future<void> _initializeVideoPlayer({bool first = false}) async {
-    int nextIndex = _currentIndex + 1;
-    final urlone = "http://192.168.178.98:3005/api/videos/video/$_currentIndex";
-    final urltwo = "http://192.168.178.98:3005/api/videos/video/$nextIndex";
-    final metadataUrl =
-        "http://192.168.178.98:3005/api/videos/videoData/$_currentIndex";
+  Future<void> getVideoMetaData(int index) async {
+    var ip = _authService.baseUrl;
+    final metadataUrl = "$ip/api/videos/videoData/$index";
 
-    try {
-      // Dispose of the old controllers properly
-      if (_controllers.length > 0) {
-        for (var controller in _controllers) {
-          if (controller.value.isInitialized) {
-            controller.removeListener(() {}); // Remove all listeners
-            controller.dispose();
-          }
-        }
-        _controllers.clear();
-      }
-
-      // Initialize new controllers
-      _controllers.add(VideoPlayerController.network(urlone)
-        ..addListener(() {
-          if (_controllers[0].value.isBuffering) {
-            setState(() {
-              _isBuffering = true;
-            });
-          } else if (_controllers[0].value.isInitialized) {
-            setState(() {
-              _isBuffering = false;
-            });
-          }
-        }));
-
-      _controllers.add(VideoPlayerController.network(urltwo)
-        ..addListener(() {
-          if (_controllers[1].value.isBuffering) {
-            setState(() {
-              _isBuffering = true;
-            });
-          } else if (_controllers[1].value.isInitialized) {
-            setState(() {
-              _isBuffering = false;
-            });
-          }
-        }));
-
-      await Future.wait([
-        _controllers[0].initialize(),
-        _controllers[1].initialize(),
-      ]);
+    final response = await http.get(Uri.parse(metadataUrl));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
 
       setState(() {
-        _isBuffering = false;
+        _currentVideoData = {
+          "id": data["videoid"],
+          'username': data['userName'] ?? 'Unknown User',
+          'description': data['description'] ?? 'No description',
+          'likes': data['likes'] ?? 0,
+          'dislikes': data['dislikes'] ?? 0,
+        };
       });
-
-      _controllers[0].play(); // Start playing the current video
-
-      // Fetch video metadata
-      final response = await http.get(Uri.parse(metadataUrl));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        setState(() {
-          _currentVideoData = {
-            'username': data['userName'],
-            'description': data['description'],
-          };
-        });
-      } else {
-        print("Failed to load video metadata");
-      }
-    } catch (e) {
-      print("Error initializing video player: $e");
-      setState(() {
-        _isBuffering = false;
-      });
+    } else {
+      print("Failed to load video metadata");
     }
   }
 
-  @override
-  void dispose() {
-    for (var controller in _controllers) {
-      controller.dispose();
+  Future<void> _initializeControllers() async {
+    _loadController(0); // Load first video
+    getVideoMetaData(0); // Load first metadata
+  }
+
+  void _loadController(int index) {
+    if (_controllers.containsKey(index)) return;
+
+    var ip = _authService.baseUrl;
+    final videoUrl = "$ip/api/videos/video/$index";
+
+    final controller = VideoPlayerController.network(videoUrl);
+    controller.addListener(() {
+      if (controller.value.isInitialized && !controller.value.isPlaying) {
+        controller.play();
+      }
+    });
+
+    controller.initialize().then((_) {
+      setState(() {
+        _controllers[index] = controller;
+        if (index == _currentPage) {
+          _currentController = controller;
+        }
+      });
+    }).catchError((error) {
+      print("Error initializing video controller: $error");
+    });
+  }
+
+  void _disposeController(int index) {
+    if (_controllers.containsKey(index)) {
+      _controllers[index]?.dispose();
+      _controllers.remove(index);
     }
-    _pageController.dispose();
-    super.dispose();
   }
 
   void _onPageScroll() {
     if (_pageController.hasClients) {
       final page = _pageController.page?.round() ?? 0;
 
-      if (_currentIndex != page) {
+      if (_currentPage != page) {
         setState(() {
-          _currentIndex = page;
-          _isBuffering = true;
+          _currentPage = page;
         });
 
-        _initializeVideoPlayer();
+        _currentController?.pause();
+        _currentController = _controllers[_currentPage];
+        _currentController?.play();
 
-        if (page >= _videoIndices.length - 1) {
-          setState(() {
-            _videoIndices.addAll(
-                List.generate(3, (index) => _videoIndices.length + index));
-          });
+        getVideoMetaData(_videoIndices[page]);
+
+        // Preload next and previous videos
+        if (!_controllers.containsKey(page - 1) && page - 1 >= 0) {
+          _loadController(_videoIndices[page - 1]);
+        }
+        if (!_controllers.containsKey(page + 1) &&
+            page + 1 < _videoIndices.length) {
+          _loadController(_videoIndices[page + 1]);
+        }
+
+        // Dispose offscreen controllers (limit the number of active controllers)
+        for (var key in _controllers.keys.toList()) {
+          if (key < page - 1 || key > page + 1) {
+            _disposeController(key);
+          }
         }
       }
     }
   }
 
-  void _togglePlayPause() {
-    if (_controllers.isNotEmpty && _controllers[0].value.isInitialized) {
-      setState(() {
-        if (_controllers[0].value.isPlaying) {
-          _controllers[0].pause();
-        } else {
-          _controllers[0].play();
-        }
-      });
+  @override
+  void dispose() {
+    for (var controller in _controllers.values) {
+      controller?.dispose();
     }
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Video Stream (Index $_currentIndex)"),
-      ),
       body: PageView.builder(
         scrollDirection: Axis.vertical,
         controller: _pageController,
@@ -168,78 +148,114 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   Widget _buildVideoWithOverlay(int index) {
     return Stack(
       children: [
-        GestureDetector(
-          onTap: _togglePlayPause,
-          child: Container(
-            color: Colors.black,
-            child: Center(
-              child:
-                  _controllers.isNotEmpty && _controllers[0].value.isInitialized
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.cover,
-                              child: SizedBox(
-                                width: _controllers[0].value.size.width,
-                                height: _controllers[0].value.size.height,
-                                child: VideoPlayer(_controllers[0]),
+        VisibilityDetector(
+          key: Key('video_$index'),
+          onVisibilityChanged: (visibilityInfo) {
+            if (visibilityInfo.visibleFraction == 0) {
+              _controllers[index]?.pause();
+            } else {
+              _controllers[index]?.play();
+            }
+          },
+          child: GestureDetector(
+            onTap: _togglePlayPause,
+            child: Container(
+              color: Colors.black,
+              child: Center(
+                child: _controllers[index] != null &&
+                        _controllers[index]!.value.isInitialized
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.cover,
+                            child: SizedBox(
+                              width: _controllers[index]!.value.size.width,
+                              height: _controllers[index]!.value.size.height,
+                              child: VideoPlayer(_controllers[index]!),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.bottomCenter,
+                            child: VideoProgressIndicator(
+                              _controllers[index]!,
+                              allowScrubbing: true,
+                              colors: const VideoProgressColors(
+                                playedColor: Color.fromARGB(255, 188, 255, 144),
+                                backgroundColor: Colors.black54,
+                                bufferedColor: Colors.grey,
                               ),
                             ),
-                            if (_isBuffering)
-                              const Center(child: CircularProgressIndicator()),
-                            Align(
-                              alignment: Alignment.bottomCenter,
-                              child: VideoProgressIndicator(
-                                _controllers[0],
-                                allowScrubbing: true,
-                                colors: const VideoProgressColors(
-                                  playedColor: Colors.red,
-                                  backgroundColor: Colors.black54,
-                                  bufferedColor: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : const Center(child: CircularProgressIndicator()),
+                          ),
+                        ],
+                      )
+                    : const Center(child: CircularProgressIndicator()),
+              ),
             ),
           ),
         ),
+        // Like and Dislike UI remains the same
         Positioned(
-          bottom: 100,
-          left: 20,
-          child: Column(
-            children: [
-              IconButton(
-                icon: Icon(Icons.thumb_up, color: Colors.white, size: 40),
-                onPressed: () {
-                  // Handle like button press
-                },
-              ),
-              Text(
-                '123',
-                style: TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          bottom: 100,
-          right: 20,
-          child: Column(
-            children: [
-              IconButton(
-                icon: Icon(Icons.thumb_down, color: Colors.white, size: 40),
-                onPressed: () {
-                  // Handle dislike button press
-                },
-              ),
-              Text(
-                '45',
-                style: TextStyle(color: Colors.white),
-              ),
-            ],
+          bottom: 120,
+          right: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  bottomLeft: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.thumb_up,
+                          color: Colors.white, size: 40),
+                      onPressed: () async {
+                        var success = await _authService
+                            .likeVideo(_currentVideoData?["id"]);
+                        if (success) {
+                          getVideoMetaData(_videoIndices[_currentPage]);
+                        }
+                      },
+                    ),
+                    Text(
+                      _currentVideoData != null
+                          ? _currentVideoData!['likes'].toString()
+                          : '0',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10), // Space between buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.thumb_down,
+                          color: Colors.white, size: 40),
+                      onPressed: () async {
+                        var success = await _authService
+                            .dislikeVideo(_currentVideoData?["id"]);
+                        if (success) {
+                          getVideoMetaData(_videoIndices[_currentPage]);
+                        }
+                      },
+                    ),
+                    Text(
+                      _currentVideoData != null
+                          ? _currentVideoData!['dislikes'].toString()
+                          : '0',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         Positioned(
@@ -247,21 +263,25 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           left: 0,
           right: 0,
           child: Container(
-            color: Colors.black.withOpacity(0.5),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius:
+                  const BorderRadius.only(topRight: Radius.circular(20)),
+            ),
             padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   _currentVideoData?['username'] ?? 'Username',
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold),
                 ),
                 Text(
                   _currentVideoData?['description'] ?? 'Description',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ],
             ),
@@ -269,5 +289,17 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
         ),
       ],
     );
+  }
+
+  void _togglePlayPause() {
+    if (_currentController != null && _currentController!.value.isInitialized) {
+      setState(() {
+        if (_currentController!.value.isPlaying) {
+          _currentController!.pause();
+        } else {
+          _currentController!.play();
+        }
+      });
+    }
   }
 }
