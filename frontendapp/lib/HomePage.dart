@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontendapp/QuestScreen.dart';
 import 'package:frontendapp/StartPage.dart';
 import 'package:frontendapp/UserScreen.dart';
 import 'package:frontendapp/upload_video_page.dart';
@@ -60,7 +61,19 @@ class Homepage extends StatelessWidget {
           borderRadius: BorderRadius.circular(0),
           colorBehindNavBar: Colors.transparent),
       navBarStyle: NavBarStyle.style6,
-
+      animationSettings: const NavBarAnimationSettings(
+        navBarItemAnimation: ItemAnimationSettings(
+          // Navigation Bar's items animation properties.
+          duration: Duration(milliseconds: 400),
+          curve: Curves.ease,
+        ),
+        screenTransitionAnimation: ScreenTransitionAnimationSettings(
+          // Screen transition animation on change of selected tab.
+          animateTabTransition: true,
+          duration: Duration(milliseconds: 350),
+          screenTransitionAnimationType: ScreenTransitionAnimationType.slide,
+        ),
+      ),
       // Add the animation here
     );
   }

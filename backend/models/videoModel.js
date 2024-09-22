@@ -24,6 +24,10 @@ const videoSchema = new mongoose.Schema({
   dislikes: {
     type: Number,
     required: true,
+  },
+  challenge: {
+    type: String,
+    required: true
   }
 });
 

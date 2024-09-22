@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontendapp/SelectionScreen.dart';
 import 'package:frontendapp/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
@@ -20,11 +21,12 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
+  String? _selectedChallenge; // Holds the selected challenge
+
   @override
   void dispose() {
     if (_videoController != null) {
-      _videoController!
-          .dispose(); // Dispose the video controller when the widget is disposed
+      _videoController!.dispose();
     }
     _titleController.dispose();
     _descriptionController.dispose();
@@ -39,11 +41,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
       setState(() {
         _video = File(result.files.single.path!);
         if (_videoController != null) {
-          _videoController!.dispose(); // Dispose the previous controller
+          _videoController!.dispose();
         }
         _videoController = VideoPlayerController.file(_video!)
           ..initialize().then((_) {
-            setState(() {}); // Update the UI when the video is initialized
+            setState(() {});
           });
       });
     }
@@ -63,6 +65,9 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     Map<String, dynamic> userInfo = await _authService.loadUserData();
     request.fields["userName"] = userInfo["username"];
     request.fields["description"] = _descriptionController.text;
+    if (_selectedChallenge != null) {
+      request.fields["challengeId"] = _selectedChallenge!;
+    }
     var response = await request.send();
 
     if (response.statusCode == 201) {
@@ -74,6 +79,21 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     setState(() {
       _isUploading = false;
     });
+  }
+
+  Future<void> _openChallengeSelection() async {
+    final selectedChallenge = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChallengeSelectionScreen(), // New screen
+      ),
+    );
+
+    if (selectedChallenge != null) {
+      setState(() {
+        _selectedChallenge = selectedChallenge;
+      });
+    }
   }
 
   @override
@@ -94,7 +114,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                height: 400,
+                height: 350,
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -118,11 +138,10 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
               ),
               const SizedBox(height: 20),
               TextField(
-                style: TextStyle(color: Colors.grey), // Text color
+                style: TextStyle(color: Colors.grey),
                 controller: _titleController,
                 decoration: InputDecoration(
-                  prefixIcon:
-                      Icon(Icons.title, color: Colors.grey), // Icon color
+                  prefixIcon: Icon(Icons.title, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10.0),
                     borderSide: BorderSide.none,
@@ -131,16 +150,15 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                   fillColor: Color.fromARGB(255, 39, 39, 39),
                   filled: true,
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  labelStyle: TextStyle(color: Colors.grey), // Label color
+                  labelStyle: TextStyle(color: Colors.grey),
                 ),
               ),
               const SizedBox(height: 20),
               TextField(
-                style: TextStyle(color: Colors.grey), // Text color
+                style: TextStyle(color: Colors.grey),
                 controller: _descriptionController,
                 decoration: InputDecoration(
-                  prefixIcon:
-                      Icon(Icons.description, color: Colors.grey), // Icon color
+                  prefixIcon: Icon(Icons.description, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10.0),
                     borderSide: BorderSide.none,
@@ -149,12 +167,35 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                   fillColor: Color.fromARGB(255, 39, 39, 39),
                   filled: true,
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  labelStyle: TextStyle(color: Colors.grey), // Label color
+                  labelStyle: TextStyle(color: Colors.grey),
                 ),
               ),
-              SizedBox(
-                height: 20,
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          foregroundColor: Colors.grey,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                        icon: Icon(Icons.how_to_vote, color: Colors.grey),
+                        label: Text(
+                          _selectedChallenge ??
+                              'Noch keine Challenge ausgewählt',
+                        ),
+                        onPressed: _openChallengeSelection,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
@@ -163,19 +204,15 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                       margin: const EdgeInsets.only(right: 10),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(
-                              255, 39, 39, 39), // Background color
-                          foregroundColor: Colors.grey, // Text color
+                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          foregroundColor: Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                         ),
-                        icon:
-                            Icon(Icons.movie, color: Colors.grey), // Icon color
+                        icon: Icon(Icons.movie, color: Colors.grey),
                         label: const Text('Select video'),
-                        onPressed: () {
-                          _pickVideo();
-                        },
+                        onPressed: _pickVideo,
                       ),
                     ),
                   ),
@@ -185,19 +222,15 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                       margin: const EdgeInsets.only(left: 10),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(
-                              255, 39, 39, 39), // Background color
-                          foregroundColor: Colors.grey, // Text color
+                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          foregroundColor: Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                         ),
-                        icon: Icon(Icons.upload,
-                            color: Colors.grey), // Icon color
+                        icon: Icon(Icons.upload, color: Colors.grey),
                         label: const Text('Upload Video'),
-                        onPressed: () {
-                          _uploadVideo();
-                        },
+                        onPressed: _uploadVideo,
                       ),
                     ),
                   ),

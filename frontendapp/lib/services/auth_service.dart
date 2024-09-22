@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:frontendapp/SelectionScreen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mime/mime.dart';
@@ -11,6 +12,35 @@ class AuthService {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
+  }
+
+  Future<List<Challenge>> fetchChallenges() async {
+    final response =
+        await http.get(Uri.parse('$baseUrl/api/videos/challenges'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> jsonList = json.decode(response.body);
+
+      return jsonList.map((json) => Challenge.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load challenges');
+    }
+  }
+
+  Future<void> createChallenge(String titel, String description) async {
+    final url = Uri.parse('$baseUrl/api/videos/challenges/create');
+    var token = await getToken();
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(
+          {'titel': titel, 'description': description, "userId": token}),
+    );
+    if (response.statusCode == 201) {
+      print("created succesfully");
+    } else {
+      print("error");
+    }
   }
 
   Future<bool> dislikeVideo(String videoId) async {

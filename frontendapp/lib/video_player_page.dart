@@ -16,7 +16,7 @@ class VideoStreamPage extends StatefulWidget {
 class _VideoStreamPageState extends State<VideoStreamPage> {
   final Map<int, VideoPlayerController?> _controllers = {};
   final PageController _pageController = PageController(viewportFraction: 1.0);
-  final List<int> _videoIndices = List.generate(100, (index) => index);
+  final List<int> _videoIndices = List.generate(30, (index) => index);
   Map<String, dynamic>? _currentVideoData;
   AuthService _authService = AuthService();
   VideoPlayerController? _currentController;
@@ -52,8 +52,11 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   }
 
   Future<void> _initializeControllers() async {
-    _loadController(0); // Load first video
-    getVideoMetaData(0); // Load first metadata
+    for (int i = 0; i < 5; i++) {
+      _loadController(_videoIndices[i]);
+    }
+
+    getVideoMetaData(_videoIndices[0]);
   }
 
   void _loadController(int index) {
@@ -64,16 +67,19 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
 
     final controller = VideoPlayerController.network(videoUrl);
     controller.addListener(() {
-      if (controller.value.isInitialized && !controller.value.isPlaying) {
-        controller.play();
+      if (controller.value.isBuffering) {
+        // Optionally handle buffering state
+      } else if (controller.value.isInitialized) {
+        // Optionally handle initialization state
       }
     });
 
     controller.initialize().then((_) {
       setState(() {
         _controllers[index] = controller;
+        controller.setLooping(true);
         if (index == _currentPage) {
-          _currentController = controller;
+          controller.play();
         }
       });
     }).catchError((error) {
@@ -103,7 +109,6 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
 
         getVideoMetaData(_videoIndices[page]);
 
-        // Preload next and previous videos
         if (!_controllers.containsKey(page - 1) && page - 1 >= 0) {
           _loadController(_videoIndices[page - 1]);
         }
@@ -112,13 +117,24 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           _loadController(_videoIndices[page + 1]);
         }
 
-        // Dispose offscreen controllers (limit the number of active controllers)
         for (var key in _controllers.keys.toList()) {
-          if (key < page - 1 || key > page + 1) {
+          if (key < page - 2 || key > page + 2) {
             _disposeController(key);
           }
         }
       }
+    }
+  }
+
+  void _togglePlayPause() {
+    if (_currentController != null && _currentController!.value.isInitialized) {
+      setState(() {
+        if (_currentController!.value.isPlaying) {
+          _currentController!.pause();
+        } else {
+          _currentController!.play();
+        }
+      });
     }
   }
 
@@ -187,6 +203,28 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                               ),
                             ),
                           ),
+                          _controllers[index] != null &&
+                                  _controllers[index]!.value.isInitialized &&
+                                  _controllers[index]!.value.isPlaying == false
+                              ? Align(
+                                  alignment: Alignment.center,
+                                  child: SizedBox(
+                                    width: 150,
+                                    height: 150,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(50),
+                                        color:
+                                            const Color.fromARGB(94, 0, 0, 0),
+                                      ),
+                                      child: Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 55,
+                                      ),
+                                    ),
+                                  ))
+                              : Text("")
                         ],
                       )
                     : const Center(child: CircularProgressIndicator()),
@@ -194,13 +232,12 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
             ),
           ),
         ),
-        // Like and Dislike UI remains the same
         Positioned(
           bottom: 120,
           right: 0,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.5), // Background color
               borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   bottomLeft: Radius.circular(20)),
@@ -289,17 +326,5 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
         ),
       ],
     );
-  }
-
-  void _togglePlayPause() {
-    if (_currentController != null && _currentController!.value.isInitialized) {
-      setState(() {
-        if (_currentController!.value.isPlaying) {
-          _currentController!.pause();
-        } else {
-          _currentController!.play();
-        }
-      });
-    }
   }
 }

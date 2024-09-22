@@ -26,6 +26,8 @@ const upload = multer({ storage });
 // Route to list all videos
 router.get("/", videoController.getAllVideos);
 
+router.get("/challenges", videoController.getAllChallenges)
+router.post("/challenges/create", videoController.createChallenge)
 // Route to upload a video
 router.post("/upload", upload.single("video"), videoController.uploadVideo);
 

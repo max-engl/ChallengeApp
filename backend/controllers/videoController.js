@@ -3,6 +3,7 @@ const fs = require("fs");
 const Video = require("../models/videoModel");
 const Like = require("../models/likeModel")
 const Dislike = require("../models/dislikeModel")
+const Challenge = require("../models/challengeModel")
 const ffmpeg = require("fluent-ffmpeg");
 
 //ffmpeg.setFfprobePath(
@@ -20,6 +21,34 @@ exports.getAllVideos = async (req, res) => {
     res.status(500).json({ msg: "Error fetching videos" });
   }
 };
+
+exports.createChallenge = async (req, res) => {
+  const { titel, description, userId } = req.body;
+
+  try {
+
+    // Validation: Check if the title length is less than 4
+    if (titel.length < 4) {
+      console.log("Title must have at least 4 characters");
+      return res.status(400).json({ msg: "Title must have at least 4 characters" });
+    }
+
+    // Create a new challenge object
+    const newChallenge = new Challenge({ titel, description, userId });
+
+    // Save the new challenge to the database
+    await newChallenge.save();
+
+    console.log("Challenge created successfully");
+    return res.status(201).json({ msg: "Challenge created!", challenge: newChallenge });
+
+  } catch (error) {
+    console.error("Something went wrong while creating challenge:", error);
+    return res.status(500).json({ msg: "Error creating challenge", error: error.message });
+  }
+};
+
+
 exports.dislikeVideo = async (req, res) => {
   try {
     const { userId, videoId } = req.body;
@@ -51,6 +80,20 @@ exports.dislikeVideo = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+exports.getAllChallenges = async (req, res) => {
+  try {
+    // Find all challenges in the database, only return _id, title, and description
+    const challenges = await Challenge.find({}, '_id titel description');
+
+    // Send the challenges as a JSON response
+    res.status(200).json(challenges);
+  } catch (error) {
+    console.error("Error fetching challenges:", error);
+    res.status(500).json({ msg: "Error fetching challenges" });
+  }
+};
+
 exports.likeVideo = async (req, res) => {
   try {
     const { userId, videoId } = req.body;
@@ -85,12 +128,11 @@ exports.likeVideo = async (req, res) => {
 exports.uploadVideo = async (req, res) => {
   try {
     const originalVideoPath = req.file.path;
-    console.log(req.body);
     const outputVideoPath = path.join(
       path.dirname(originalVideoPath),
       `resized-${req.file.filename}`
     );
-
+    console.log(req.body);
     // Use ffmpeg to get video metadata (resolution)
     ffmpeg.ffprobe(originalVideoPath, async (err, metadata) => {
       if (err) {
@@ -120,7 +162,8 @@ exports.uploadVideo = async (req, res) => {
                 userName: req.body.userName, // Ensure this is correctly passed
                 description: req.body.description, // Ensure this is correctly passed
                 likes: 0,
-                dislikes: 0
+                dislikes: 0,
+                challenge: req.body.challengeId
               });
               await newVideo.save();
 
@@ -148,14 +191,14 @@ exports.uploadVideo = async (req, res) => {
           .run();
       } else {
         try {
-          // Save the video information to the database without resizing
           const newVideo = new Video({
             title: req.body.title,
             videoUrl: `/uploads/videos/${req.file.filename}`,
             userName: req.body.userName, // Ensure this is correctly passed
             description: req.body.description, // Ensure this is correctly passed
             likes: 0,
-            dislikes: 0
+            dislikes: 0,
+            challenge: req.body.challengeId
           });
           await newVideo.save();
           res.status(201).json(newVideo);
@@ -207,10 +250,25 @@ exports.getVideoDataIndex = async (req, res) => {
     res.status(500).json({ msg: "Error fetching data" });
   }
 };
+
+const cache = require('memory-cache');  // Simple memory cache
+
+// Cache total video count for 5 minutes
+const getCachedVideoCount = async () => {
+  const cachedCount = cache.get('totalVideos');
+  if (cachedCount !== null) {
+    return cachedCount;
+  }
+
+  const totalVideos = await Video.countDocuments();
+  cache.put('totalVideos', totalVideos, 300000); // Cache for 5 minutes
+  return totalVideos;
+};
+
 exports.getVideoWithIndex = async (req, res) => {
   try {
     let videoIndex = parseInt(req.params.index, 10);
-    const totalVideos = await Video.countDocuments();
+    const totalVideos = await getCachedVideoCount();
 
     if (totalVideos === 0) {
       console.log("No videos available.");
@@ -219,6 +277,7 @@ exports.getVideoWithIndex = async (req, res) => {
 
     videoIndex = videoIndex % totalVideos;
 
+    // Find video from the database
     const video = await Video.find().skip(videoIndex).limit(1).exec();
 
     if (!video.length) {
@@ -228,41 +287,33 @@ exports.getVideoWithIndex = async (req, res) => {
 
     const videoUrl = video[0].videoUrl;
     const videoFilename = path.basename(videoUrl);
-    const videoPath = path.resolve(
-      __dirname,
-      "../uploads/videos",
-      videoFilename
-    );
+    const videoPath = path.resolve(__dirname, "../uploads/videos", videoFilename);
 
-
-
+    // Check if video file exists asynchronously
     if (!fs.existsSync(videoPath)) {
       return res.status(404).send("Video file not found.");
     }
 
-    const stat = fs.statSync(videoPath);
+    const stat = await fs.promises.stat(videoPath);
     const fileSize = stat.size;
     const range = req.headers.range;
 
-    const CHUNK_SIZE = 1.2 * 1024 * 1024; // 0.5MB
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
 
+    // Handle range request
     if (range) {
-      const parts = range.replace(/bytes=/, "").split("-"); a
+      const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
-      const end = parts[1]
-        ? parseInt(parts[1], 10)
-        : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
-
+      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
 
       if (start >= fileSize) {
-        res
-          .status(416)
-          .send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
+        res.status(416).send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
         return;
       }
 
       const chunksize = end - start + 1;
       const file = fs.createReadStream(videoPath, { start, end });
+
       const head = {
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
         "Accept-Ranges": "bytes",
@@ -273,7 +324,7 @@ exports.getVideoWithIndex = async (req, res) => {
       res.writeHead(206, head);
       file.pipe(res);
     } else {
-
+      // If no range header, send the entire video file
       const head = {
         "Content-Length": fileSize,
         "Content-Type": "video/mp4",
@@ -282,9 +333,11 @@ exports.getVideoWithIndex = async (req, res) => {
       fs.createReadStream(videoPath).pipe(res);
     }
   } catch (error) {
-    res.status(500).json({ msg: "Error fetching video" });
+    console.error("Error fetching video:", error);
+    res.status(500).json({ msg: "Error fetching video", error: error.message });
   }
 };
+
 
 // Delete all videos from the folder and clear the video collection
 exports.deleteAllVideos = async (req, res) => {

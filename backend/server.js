@@ -14,7 +14,7 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// Serve video files from the "uploads/videos" directory
+// Serve video files from the "uploads/videos" directory  
 app.use(
   "/uploads/videos",
   express.static(path.join(__dirname, "uploads/videos"))
