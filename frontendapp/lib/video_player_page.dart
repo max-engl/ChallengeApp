@@ -16,12 +16,12 @@ class VideoStreamPage extends StatefulWidget {
 class _VideoStreamPageState extends State<VideoStreamPage> {
   final Map<int, VideoPlayerController?> _controllers = {};
   final PageController _pageController = PageController(viewportFraction: 1.0);
-  final List<int> _videoIndices = List.generate(30, (index) => index);
+  final List<int> _videoIndices = List.generate(50, (index) => index);
   Map<String, dynamic>? _currentVideoData;
   AuthService _authService = AuthService();
   VideoPlayerController? _currentController;
   int _currentPage = 0;
-
+  String _currentUserName = "None";
   @override
   void initState() {
     super.initState();
@@ -44,7 +44,9 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           'description': data['description'] ?? 'No description',
           'likes': data['likes'] ?? 0,
           'dislikes': data['dislikes'] ?? 0,
+          'challenge': data['challenge'] ?? "KEINE"
         };
+        _currentUserName = data['userName'];
       });
     } else {
       print("Failed to load video metadata");
@@ -203,28 +205,6 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                               ),
                             ),
                           ),
-                          _controllers[index] != null &&
-                                  _controllers[index]!.value.isInitialized &&
-                                  _controllers[index]!.value.isPlaying == false
-                              ? Align(
-                                  alignment: Alignment.center,
-                                  child: SizedBox(
-                                    width: 150,
-                                    height: 150,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(50),
-                                        color:
-                                            const Color.fromARGB(94, 0, 0, 0),
-                                      ),
-                                      child: Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.white,
-                                        size: 55,
-                                      ),
-                                    ),
-                                  ))
-                              : Text("")
                         ],
                       )
                     : const Center(child: CircularProgressIndicator()),
@@ -310,7 +290,17 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _currentVideoData?['username'] ?? 'Username',
+                  '@$_currentUserName' ?? 'Username',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold),
+                ),
+                SizedBox(
+                  height: 5,
+                ),
+                Text(
+                  _currentVideoData?['challenge'] ?? 'Challenge',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -318,7 +308,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                 ),
                 Text(
                   _currentVideoData?['description'] ?? 'Description',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
             ),

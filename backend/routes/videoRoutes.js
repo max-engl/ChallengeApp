@@ -15,8 +15,8 @@ const storage = multer.diskStorage({
 });
 
 const fs = require("fs");
-router.post("/like", videoController.likeVideo)
-router.post("/dislike", videoController.dislikeVideo)
+router.post("/like", videoController.likeVideo);
+router.post("/dislike", videoController.dislikeVideo);
 router.get("/video/:index", videoController.getVideoWithIndex);
 router.get("/videoData/:index", videoController.getVideoDataIndex);
 router.get("/getAll", videoController.getAllVideos);
@@ -26,8 +26,9 @@ const upload = multer({ storage });
 // Route to list all videos
 router.get("/", videoController.getAllVideos);
 
-router.get("/challenges", videoController.getAllChallenges)
-router.post("/challenges/create", videoController.createChallenge)
+router.get("/challenges", videoController.getAllChallenges);
+router.post("/challenges/create", videoController.createChallenge);
+router.get("/challenges/delete", videoController.deleteAllChallenges);
 // Route to upload a video
 router.post("/upload", upload.single("video"), videoController.uploadVideo);
 

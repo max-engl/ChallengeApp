@@ -14,7 +14,7 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// Serve video files from the "uploads/videos" directory  
+// Serve video files from the "uploads/videos" directory
 app.use(
   "/uploads/videos",
   express.static(path.join(__dirname, "uploads/videos"))
@@ -31,6 +31,6 @@ app.use("/api/login", loginRoutes);
 app.use("/api/user", userRoutes);
 
 const PORT = process.env.PORT || 3005;
-app.listen(PORT, "192.168.178.88", () => {
+app.listen(PORT, "192.168.178.98", () => {
   console.log(`Server running on port ${PORT}`);
 });

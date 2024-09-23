@@ -45,7 +45,8 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
 
                 return GestureDetector(
                     onTap: () {
-                      Navigator.pop(context, challenge.title);
+                      Navigator.pop(context,
+                          {"title": challenge.title, "id": challenge.id});
                     },
                     child: Card(
                       color: Color.fromARGB(255, 39, 39, 39),
@@ -88,8 +89,13 @@ class Challenge {
   final String id;
   final String title;
   final String description;
+  final int videoCount;
 
-  Challenge({required this.id, required this.title, required this.description});
+  Challenge(
+      {required this.id,
+      required this.title,
+      required this.description,
+      required this.videoCount});
 
   // Factory method to create a Challenge from JSON data
   factory Challenge.fromJson(Map<String, dynamic> json) {
@@ -97,6 +103,7 @@ class Challenge {
       id: json['_id'],
       title: json['titel'], // match the exact field names returned by the API
       description: json['description'],
+      videoCount: json["videoCount"],
     );
   }
 }

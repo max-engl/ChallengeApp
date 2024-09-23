@@ -149,12 +149,34 @@ class _QuestscreenState extends State<Questscreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  challenge.title.toUpperCase(),
-                                  style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        challenge.title.toUpperCase(),
+                                        style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                    Spacer(), // Pushes the video count and icon to the right
+                                    Icon(
+                                      Icons.videocam,
+                                      color: Colors
+                                          .grey, // Set the icon color to match the theme
+                                    ),
+                                    SizedBox(
+                                        width:
+                                            5), // Space between icon and video count
+                                    Text(
+                                      challenge.videoCount.toString(),
+                                      style: TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
                                 ),
                                 Divider(),
                                 Text(

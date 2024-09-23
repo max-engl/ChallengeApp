@@ -1,15 +1,11 @@
 const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-  },
   videoUrl: {
     type: String,
     required: true,
   },
-  userName: {
+  userToken: {
     type: String,
     required: true,
   },
@@ -27,8 +23,8 @@ const videoSchema = new mongoose.Schema({
   },
   challenge: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
 module.exports = mongoose.model("Video", videoSchema);

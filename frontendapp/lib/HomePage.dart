@@ -21,7 +21,6 @@ class Homepage extends StatelessWidget {
     ];
   }
 
-  // Define your bottom nav bar items
   List<PersistentBottomNavBarItem> _navBarItems() {
     return [
       PersistentBottomNavBarItem(
@@ -76,27 +75,5 @@ class Homepage extends StatelessWidget {
       ),
       // Add the animation here
     );
-  }
-}
-
-// Example screens
-class Screen1 extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('Screen 1'));
-  }
-}
-
-class Screen2 extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('Screen 2'));
-  }
-}
-
-class Screen3 extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('Screen 3'));
   }
 }

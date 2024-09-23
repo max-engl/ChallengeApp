@@ -3,6 +3,7 @@ import 'package:frontendapp/SelectionScreen.dart';
 import 'package:frontendapp/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
+import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 import 'dart:io';
 import 'package:video_player/video_player.dart';
 
@@ -21,7 +22,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
-  String? _selectedChallenge; // Holds the selected challenge
+  Map<String, dynamic> _selectedChallenge = {};
 
   @override
   void dispose() {
@@ -61,12 +62,13 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     var request =
         http.MultipartRequest('POST', Uri.parse('$ip/api/videos/upload'));
     request.files.add(await http.MultipartFile.fromPath('video', _video!.path));
+    String? userToken = await _authService.getToken() ?? "no token";
     request.fields['title'] = _titleController.text;
     Map<String, dynamic> userInfo = await _authService.loadUserData();
-    request.fields["userName"] = userInfo["username"];
+    request.fields["userToken"] = userToken;
     request.fields["description"] = _descriptionController.text;
     if (_selectedChallenge != null) {
-      request.fields["challengeId"] = _selectedChallenge!;
+      request.fields["challengeId"] = _selectedChallenge["id"];
     }
     var response = await request.send();
 
@@ -82,11 +84,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
   }
 
   Future<void> _openChallengeSelection() async {
-    final selectedChallenge = await Navigator.push<String>(
+    final selectedChallenge = await PersistentNavBarNavigator.pushNewScreen(
       context,
-      MaterialPageRoute(
-        builder: (context) => ChallengeSelectionScreen(), // New screen
-      ),
+      screen: ChallengeSelectionScreen(),
+      withNavBar: true, // OPTIONAL VALUE. True by default.
+      pageTransitionAnimation: PageTransitionAnimation.cupertino,
     );
 
     if (selectedChallenge != null) {
@@ -139,23 +141,6 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
               const SizedBox(height: 20),
               TextField(
                 style: TextStyle(color: Colors.grey),
-                controller: _titleController,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.title, color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  labelText: 'Video Title',
-                  fillColor: Color.fromARGB(255, 39, 39, 39),
-                  filled: true,
-                  floatingLabelBehavior: FloatingLabelBehavior.always,
-                  labelStyle: TextStyle(color: Colors.grey),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                style: TextStyle(color: Colors.grey),
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   prefixIcon: Icon(Icons.description, color: Colors.grey),
@@ -186,7 +171,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                         ),
                         icon: Icon(Icons.how_to_vote, color: Colors.grey),
                         label: Text(
-                          _selectedChallenge ??
+                          _selectedChallenge["title"] ??
                               'Noch keine Challenge ausgewählt',
                         ),
                         onPressed: _openChallengeSelection,
@@ -195,7 +180,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 50),
               Row(
                 children: [
                   Expanded(

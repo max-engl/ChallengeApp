@@ -8,7 +8,7 @@ import 'package:http_parser/http_parser.dart';
 
 class AuthService {
   final String baseUrl =
-      'http://192.168.178.88:3005'; // Replace with your actual API URL
+      'http://192.168.178.98:3005'; // Replace with your actual API URL
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -96,7 +96,6 @@ class AuthService {
   Future<Map<String, dynamic>> loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
-
     if (token != null) {
       // Fetch the user data from your API
       final response = await http.post(
@@ -106,12 +105,10 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        // Parse the JSON response
         final userData = jsonDecode(response.body);
         return {
           "username": userData['userName'],
-          "profilePicUrl":
-              userData['profilePicUrl'], // Fetch profile picture URL
+          "profilePicUrl": userData['profilePicUrl'],
         };
       } else {
         print('Failed to load user data');

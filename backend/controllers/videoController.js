@@ -1,17 +1,18 @@
 const path = require("path");
 const fs = require("fs");
 const Video = require("../models/videoModel");
-const Like = require("../models/likeModel")
-const Dislike = require("../models/dislikeModel")
-const Challenge = require("../models/challengeModel")
+const Like = require("../models/likeModel");
+const User = require("../models/userModel");
+const Dislike = require("../models/dislikeModel");
+const Challenge = require("../models/challengeModel");
 const ffmpeg = require("fluent-ffmpeg");
 
-//ffmpeg.setFfprobePath(
-//  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
-//);
-//ffmpeg.setFfmpegPath(
-//  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
-//);
+ffmpeg.setFfprobePath(
+  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
+);
+ffmpeg.setFfmpegPath(
+  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
+);
 
 exports.getAllVideos = async (req, res) => {
   try {
@@ -26,11 +27,12 @@ exports.createChallenge = async (req, res) => {
   const { titel, description, userId } = req.body;
 
   try {
-
     // Validation: Check if the title length is less than 4
     if (titel.length < 4) {
       console.log("Title must have at least 4 characters");
-      return res.status(400).json({ msg: "Title must have at least 4 characters" });
+      return res
+        .status(400)
+        .json({ msg: "Title must have at least 4 characters" });
     }
 
     // Create a new challenge object
@@ -40,14 +42,16 @@ exports.createChallenge = async (req, res) => {
     await newChallenge.save();
 
     console.log("Challenge created successfully");
-    return res.status(201).json({ msg: "Challenge created!", challenge: newChallenge });
-
+    return res
+      .status(201)
+      .json({ msg: "Challenge created!", challenge: newChallenge });
   } catch (error) {
     console.error("Something went wrong while creating challenge:", error);
-    return res.status(500).json({ msg: "Error creating challenge", error: error.message });
+    return res
+      .status(500)
+      .json({ msg: "Error creating challenge", error: error.message });
   }
 };
-
 
 exports.dislikeVideo = async (req, res) => {
   try {
@@ -67,24 +71,39 @@ exports.dislikeVideo = async (req, res) => {
       // If a like exists, remove it and update the likes count
       await Dislike.deleteOne({ userId, videoId });
       await Video.findByIdAndUpdate(videoId, { $inc: { dislikes: -1 } });
-      return res.json({ message: 'Dislike removed successfully.' });
+      return res.json({ message: "Dislike removed successfully." });
     } else {
       // If no like exists, create a new like and update the likes count
       const newDislike = new Dislike({ userId, videoId });
       await newDislike.save();
       await Video.findByIdAndUpdate(videoId, { $inc: { dislikes: 1 } });
-      return res.json({ message: 'Video liked successfully.' });
+      return res.json({ message: "Video liked successfully." });
     }
   } catch (error) {
-    console.error('Error handling like/unlike:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error handling like/unlike:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.deleteAllChallenges = async (req, res) => {
+  try {
+    await Challenge.deleteMany({}); // Ensure this is awaited
+
+    res
+      .status(200)
+      .json({ msg: "All challenges deleted and collection cleared" });
+  } catch (error) {
+    res.status(500).json({ msg: "Error deleting challenges" });
   }
 };
 
 exports.getAllChallenges = async (req, res) => {
   try {
     // Find all challenges in the database, only return _id, title, and description
-    const challenges = await Challenge.find({}, '_id titel description');
+    const challenges = await Challenge.find(
+      {},
+      "_id titel description videoCount"
+    );
 
     // Send the challenges as a JSON response
     res.status(200).json(challenges);
@@ -112,17 +131,17 @@ exports.likeVideo = async (req, res) => {
       // If a like exists, remove it and update the likes count
       await Like.deleteOne({ userId, videoId });
       await Video.findByIdAndUpdate(videoId, { $inc: { likes: -1 } });
-      return res.json({ message: 'Like removed successfully.' });
+      return res.json({ message: "Like removed successfully." });
     } else {
       // If no like exists, create a new like and update the likes count
       const newLike = new Like({ userId, videoId });
       await newLike.save();
       await Video.findByIdAndUpdate(videoId, { $inc: { likes: 1 } });
-      return res.json({ message: 'Video liked successfully.' });
+      return res.json({ message: "Video liked successfully." });
     }
   } catch (error) {
-    console.error('Error handling like/unlike:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error handling like/unlike:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 exports.uploadVideo = async (req, res) => {
@@ -159,14 +178,16 @@ exports.uploadVideo = async (req, res) => {
               const newVideo = new Video({
                 title: req.body.title,
                 videoUrl: `/uploads/videos/resized-${req.file.filename}`,
-                userName: req.body.userName, // Ensure this is correctly passed
+                userToken: req.body.userToken, // Ensure this is correctly passed
                 description: req.body.description, // Ensure this is correctly passed
                 likes: 0,
                 dislikes: 0,
-                challenge: req.body.challengeId
+                challenge: req.body.challengeId,
               });
               await newVideo.save();
-
+              await Challenge.findByIdAndUpdate(req.body.challengeId, {
+                $inc: { videoCount: 1 },
+              });
               // Attempt to delete the original video after a small delay
               setTimeout(() => {
                 fs.unlink(originalVideoPath, (err) => {
@@ -194,13 +215,16 @@ exports.uploadVideo = async (req, res) => {
           const newVideo = new Video({
             title: req.body.title,
             videoUrl: `/uploads/videos/${req.file.filename}`,
-            userName: req.body.userName, // Ensure this is correctly passed
+            userToken: req.body.userToken, // Ensure this is correctly passed
             description: req.body.description, // Ensure this is correctly passed
             likes: 0,
             dislikes: 0,
-            challenge: req.body.challengeId
+            challenge: req.body.challengeId,
           });
           await newVideo.save();
+          await Challenge.findByIdAndUpdate(req.body.challengeId, {
+            $inc: { videoCount: 1 },
+          });
           res.status(201).json(newVideo);
         } catch (error) {
           console.error("Error saving video:", error);
@@ -213,6 +237,34 @@ exports.uploadVideo = async (req, res) => {
     res.status(500).json({ msg: "Error uploading video" });
   }
 };
+
+async function userNameFromUserToken(token) {
+  try {
+    const userData = await User.findOne({ token });
+    if (userData) {
+      return userData.userName;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user data from token:", error);
+    return null;
+  }
+}
+
+async function challengeTitelFromChallengeId(_id) {
+  try {
+    const challengeData = await Challenge.findOne({ _id });
+    if (challengeData) {
+      return challengeData.titel;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user data from token:", error);
+    return null;
+  }
+}
 
 exports.getVideoDataIndex = async (req, res) => {
   try {
@@ -234,15 +286,25 @@ exports.getVideoDataIndex = async (req, res) => {
       return res.status(404).send("Video not found.");
     }
 
-    // Return video metadata as JSON
     const videoData = video[0];
-    console.log(videoData);
+    const token = videoData.userToken;
+
+    // Fetch the username using the token
+    const userName = await userNameFromUserToken(token);
+
+    if (!userName) {
+      console.log("User not found for the given token.");
+      return res.status(404).send("User not found.");
+    }
+
+    // Return video metadata as JSON
     res.status(200).json({
       videoid: videoData._id.toString(),
-      userName: videoData.userName,
+      userName: userName,
       description: videoData.description,
       likes: videoData.likes,
-      dislikes: videoData.dislikes
+      dislikes: videoData.dislikes,
+      challenge: await challengeTitelFromChallengeId(videoData.challenge),
       // Include any other relevant fields
     });
   } catch (error) {
@@ -251,24 +313,24 @@ exports.getVideoDataIndex = async (req, res) => {
   }
 };
 
-const cache = require('memory-cache');  // Simple memory cache
+const cache = require("memory-cache"); // Simple memory cache
 
 // Cache total video count for 5 minutes
 const getCachedVideoCount = async () => {
-  const cachedCount = cache.get('totalVideos');
+  const cachedCount = cache.get("totalVideos");
   if (cachedCount !== null) {
     return cachedCount;
   }
 
   const totalVideos = await Video.countDocuments();
-  cache.put('totalVideos', totalVideos, 300000); // Cache for 5 minutes
+  cache.put("totalVideos", totalVideos, 300000); // Cache for 5 minutes
   return totalVideos;
 };
 
 exports.getVideoWithIndex = async (req, res) => {
   try {
     let videoIndex = parseInt(req.params.index, 10);
-    const totalVideos = await getCachedVideoCount();
+    const totalVideos = await Video.countDocuments();
 
     if (totalVideos === 0) {
       console.log("No videos available.");
@@ -287,7 +349,11 @@ exports.getVideoWithIndex = async (req, res) => {
 
     const videoUrl = video[0].videoUrl;
     const videoFilename = path.basename(videoUrl);
-    const videoPath = path.resolve(__dirname, "../uploads/videos", videoFilename);
+    const videoPath = path.resolve(
+      __dirname,
+      "../uploads/videos",
+      videoFilename
+    );
 
     // Check if video file exists asynchronously
     if (!fs.existsSync(videoPath)) {
@@ -304,10 +370,14 @@ exports.getVideoWithIndex = async (req, res) => {
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
+      const end = parts[1]
+        ? parseInt(parts[1], 10)
+        : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
 
       if (start >= fileSize) {
-        res.status(416).send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
+        res
+          .status(416)
+          .send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
         return;
       }
 
@@ -337,7 +407,6 @@ exports.getVideoWithIndex = async (req, res) => {
     res.status(500).json({ msg: "Error fetching video", error: error.message });
   }
 };
-
 
 // Delete all videos from the folder and clear the video collection
 exports.deleteAllVideos = async (req, res) => {
