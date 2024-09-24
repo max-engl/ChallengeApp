@@ -18,7 +18,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   final PageController _pageController = PageController(viewportFraction: 1.0);
   final List<int> _videoIndices = List.generate(50, (index) => index);
   Map<String, dynamic>? _currentVideoData;
-  AuthService _authService = AuthService();
+  final AuthService _authService = AuthService();
   VideoPlayerController? _currentController;
   int _currentPage = 0;
   String _currentUserName = "None";

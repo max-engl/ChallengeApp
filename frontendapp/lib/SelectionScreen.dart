@@ -10,7 +10,7 @@ class ChallengeSelectionScreen extends StatefulWidget {
 }
 
 class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
-  AuthService _authService = AuthService();
+  final AuthService _authService = AuthService();
   @override
   void initState() {
     super.initState();
@@ -38,43 +38,68 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
           } else if (snapshot.hasData) {
             List<Challenge>? challenges = snapshot.data;
 
-            return ListView.builder(
-              itemCount: challenges?.length ?? 0,
-              itemBuilder: (context, index) {
-                final challenge = challenges![index];
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: ListView.builder(
+                itemCount: challenges?.length ?? 0,
+                itemBuilder: (context, index) {
+                  final challenge = challenges![index];
 
-                return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context,
-                          {"title": challenge.title, "id": challenge.id});
-                    },
-                    child: Card(
-                      color: Color.fromARGB(255, 39, 39, 39),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              challenge.title.toUpperCase(),
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                            Divider(),
-                            Text(
-                              challenge.description,
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600),
-                            )
-                          ],
+                  return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context,
+                            {"title": challenge.title, "id": challenge.id});
+                      },
+                      child: Card(
+                        color: Color.fromARGB(255, 39, 39, 39),
+                        child: Padding(
+                          padding: const EdgeInsets.all(18.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      challenge.title.toUpperCase(),
+                                      style: TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                  Spacer(), // Pushes the video count and icon to the right
+                                  Icon(
+                                    Icons.videocam,
+                                    color: Colors
+                                        .grey, // Set the icon color to match the theme
+                                  ),
+                                  SizedBox(
+                                      width:
+                                          5), // Space between icon and video count
+                                  Text(
+                                    challenge.videoCount.toString(),
+                                    style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                              Divider(),
+                              Text(
+                                challenge.description,
+                                style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600),
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-                    ));
-              },
+                      ));
+                },
+              ),
             );
           } else {
             return Center(child: Text('No challenges available'));

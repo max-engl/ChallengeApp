@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontendapp/SelectionScreen.dart';
+import 'package:frontendapp/challange_video_player.dart';
 import 'package:frontendapp/services/auth_service.dart';
+import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 class Questscreen extends StatefulWidget {
   const Questscreen({super.key});
@@ -27,6 +29,9 @@ class _QuestscreenState extends State<Questscreen> {
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 17, 17, 17),
       appBar: AppBar(
+        iconTheme: IconThemeData(
+          color: Colors.white, //change your color here
+        ),
         title: const Text(
           'Challange vorschlagen',
           style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
@@ -85,7 +90,7 @@ class _QuestscreenState extends State<Questscreen> {
             Row(
               children: [
                 Expanded(
-                  child: Container(
+                  child: SizedBox(
                     height: 50,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -160,15 +165,28 @@ class _QuestscreenState extends State<Questscreen> {
                                             fontWeight: FontWeight.w700),
                                       ),
                                     ),
-                                    Spacer(), // Pushes the video count and icon to the right
-                                    Icon(
-                                      Icons.videocam,
-                                      color: Colors
-                                          .grey, // Set the icon color to match the theme
+
+                                    IconButton(
+                                      padding: EdgeInsets.all(0),
+                                      icon: Icon(
+                                        Icons.videocam,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () {
+                                        PersistentNavBarNavigator.pushNewScreen(
+                                          context,
+                                          screen: ChallengeVideoStreamPage(
+                                              challengeId: challenge.id),
+                                          withNavBar:
+                                              true, // OPTIONAL VALUE. True by default.
+                                          pageTransitionAnimation:
+                                              PageTransitionAnimation.cupertino,
+                                        );
+                                      },
                                     ),
                                     SizedBox(
                                         width:
-                                            5), // Space between icon and video count
+                                            2), // Space between icon and video count
                                     Text(
                                       challenge.videoCount.toString(),
                                       style: TextStyle(

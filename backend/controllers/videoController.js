@@ -7,12 +7,12 @@ const Dislike = require("../models/dislikeModel");
 const Challenge = require("../models/challengeModel");
 const ffmpeg = require("fluent-ffmpeg");
 
-ffmpeg.setFfprobePath(
-  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
-);
-ffmpeg.setFfmpegPath(
-  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
-);
+//ffmpeg.setFfprobePath(
+//"C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
+//);
+//ffmpeg.setFfmpegPath(
+//  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
+//);
 
 exports.getAllVideos = async (req, res) => {
   try {
@@ -313,6 +313,55 @@ exports.getVideoDataIndex = async (req, res) => {
   }
 };
 
+
+exports.getVideoDataIndexWithChallenge = async (req, res) => {
+  try {
+    let videoIndex = parseInt(req.params.index, 10);
+    let challenge = req.params.challengeId;
+    const totalVideos = await Video.countDocuments({ challenge });
+
+    if (totalVideos === 0) {
+      console.log("No videos available for this challenge.");
+      return res.status(404).send("No videos available for this challenge.");
+    }
+
+    videoIndex = videoIndex % totalVideos;
+
+    // Fetch video metadata
+    const video = await Video.find({ challenge }).skip(videoIndex).limit(1).exec();
+
+    if (!video.length) {
+      console.log("Video not found.");
+      return res.status(404).send("Video not found.");
+    }
+
+    const videoData = video[0];
+    const token = videoData.userToken;
+
+    // Fetch the username using the token
+    const userName = await userNameFromUserToken(token);
+
+    if (!userName) {
+      console.log("User not found for the given token.");
+      return res.status(404).send("User not found.");
+    }
+
+    // Return video metadata as JSON
+    res.status(200).json({
+      videoid: videoData._id.toString(),
+      userName: userName,
+      description: videoData.description,
+      likes: videoData.likes,
+      dislikes: videoData.dislikes,
+      challenge: await challengeTitelFromChallengeId(videoData.challenge),
+      // Include any other relevant fields
+    });
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    res.status(500).json({ msg: "Error fetching data" });
+  }
+};
+
 const cache = require("memory-cache"); // Simple memory cache
 
 // Cache total video count for 5 minutes
@@ -355,7 +404,6 @@ exports.getVideoWithIndex = async (req, res) => {
       videoFilename
     );
 
-    // Check if video file exists asynchronously
     if (!fs.existsSync(videoPath)) {
       return res.status(404).send("Video file not found.");
     }
@@ -408,18 +456,99 @@ exports.getVideoWithIndex = async (req, res) => {
   }
 };
 
-// Delete all videos from the folder and clear the video collection
+
+exports.getVideoWithIndexAndChallange = async (req, res) => {
+  try {
+    let videoIndex = parseInt(req.params.index, 10);
+    let challenge = req.params.challengeId;
+
+    const totalVideos = await Video.countDocuments({ challenge });
+
+    if (totalVideos === 0) {
+      console.log("No videos available for this challenge.");
+      return res.status(404).send("No videos available for this challenge.");
+    }
+
+    // Handle cyclic indexing (if index exceeds total videos)
+    videoIndex = videoIndex % totalVideos;
+
+    // Find video for the specific challenge and at the specific index
+    const video = await Video.find({ challenge })
+      .skip(videoIndex)
+      .limit(1)
+      .exec();
+
+    if (!video.length) {
+      console.log("Video not found for this challenge.");
+      return res.status(404).send("Video not found for this challenge.");
+    }
+
+    const videoUrl = video[0].videoUrl;
+    const videoFilename = path.basename(videoUrl);
+    const videoPath = path.resolve(__dirname, "../uploads/videos", videoFilename);
+
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).send("Video file not found.");
+    }
+
+    const stat = await fs.promises.stat(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+
+    // Handle range request (partial content)
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
+
+      if (start >= fileSize) {
+        return res.status(416).send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
+      }
+
+      const chunksize = end - start + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+
+      const head = {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": "video/mp4",
+      };
+
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Serve the entire video if no range is specified
+      const head = {
+        "Content-Length": fileSize,
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    console.error("Error fetching video:", error);
+    res.status(500).json({ msg: "Error fetching video", error: error.message });
+  }
+};
+
+
 exports.deleteAllVideos = async (req, res) => {
   try {
     const videosDir = path.resolve(__dirname, "../uploads/videos");
 
+    // Read all video files in the directory
     fs.readdir(videosDir, async (err, files) => {
       if (err) {
         return res.status(500).send("Unable to scan directory: " + err);
       }
 
+      // Filter out .mp4 files
       const videoFiles = files.filter((file) => file.endsWith(".mp4"));
 
+      // Delete each video file from the file system
       videoFiles.forEach((file) => {
         const filePath = path.join(videosDir, file);
         fs.unlink(filePath, (err) => {
@@ -429,13 +558,17 @@ exports.deleteAllVideos = async (req, res) => {
         });
       });
 
-      await Video.deleteMany({}); // Ensure this is awaited
+      // Delete all video documents from the database
+      await Video.deleteMany({});
 
-      res
-        .status(200)
-        .json({ msg: "All videos deleted and collection cleared" });
+      // Set `videoCount` of all challenges to 0
+      await Challenge.updateMany({}, { $set: { videoCount: 0 } });
+
+      // Respond with success message
+      res.status(200).json({ msg: "All videos deleted and challenge video counts reset to 0." });
     });
   } catch (error) {
+    console.error("Error deleting videos:", error);
     res.status(500).json({ msg: "Error deleting videos" });
   }
 };

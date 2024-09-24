@@ -18,7 +18,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
   File? _video;
   VideoPlayerController? _videoController;
   bool _isUploading = false;
-  AuthService _authService = AuthService();
+  final AuthService _authService = AuthService();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
@@ -58,6 +58,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     setState(() {
       _isUploading = true;
     });
+
     var ip = _authService.baseUrl;
     var request =
         http.MultipartRequest('POST', Uri.parse('$ip/api/videos/upload'));
@@ -67,13 +68,43 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     Map<String, dynamic> userInfo = await _authService.loadUserData();
     request.fields["userToken"] = userToken;
     request.fields["description"] = _descriptionController.text;
-    if (_selectedChallenge != null) {
-      request.fields["challengeId"] = _selectedChallenge["id"];
-    }
+    request.fields["challengeId"] = _selectedChallenge["id"];
+
     var response = await request.send();
 
     if (response.statusCode == 201) {
       print("Video uploaded successfully!");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Uploaded successfully',
+            textAlign: TextAlign.center, // Center the text
+            style: const TextStyle(
+              color: Colors.black, // Custom text color
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.greenAccent, // Custom color for the SnackBar
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ), // Rounded top corners
+          behavior: SnackBarBehavior.fixed, // Keeps the SnackBar at the bottom
+          duration: const Duration(
+              seconds: 3), // Duration for how long the SnackBar will be shown
+          animation: CurvedAnimation(
+            parent: AnimationController(
+              duration: const Duration(milliseconds: 300),
+              vsync: ScaffoldMessenger.of(
+                  context), // Animation controller with a short duration
+            ),
+            curve: Curves.easeInOut, // Smooth animation curve
+          ),
+        ),
+      );
     } else {
       print("Failed to upload video.");
     }
@@ -87,7 +118,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     final selectedChallenge = await PersistentNavBarNavigator.pushNewScreen(
       context,
       screen: ChallengeSelectionScreen(),
-      withNavBar: true, // OPTIONAL VALUE. True by default.
+      withNavBar: true,
       pageTransitionAnimation: PageTransitionAnimation.cupertino,
     );
 
@@ -159,7 +190,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
               Row(
                 children: [
                   Expanded(
-                    child: Container(
+                    child: SizedBox(
                       height: 50,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
