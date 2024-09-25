@@ -8,7 +8,7 @@ import 'package:http_parser/http_parser.dart';
 
 class AuthService {
   final String baseUrl =
-      'http://192.168.178.123:3005'; // Replace with your actual API URL
+      'http://192.168.178.88:3005'; // Replace with your actual API URL
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');

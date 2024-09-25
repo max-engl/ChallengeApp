@@ -6,13 +6,18 @@ const User = require("../models/userModel");
 const Dislike = require("../models/dislikeModel");
 const Challenge = require("../models/challengeModel");
 const ffmpeg = require("fluent-ffmpeg");
-
+const uploadLogic = require("./logic/uploadLogic")
 //ffmpeg.setFfprobePath(
 //"C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffprobe.exe"
 //);
 //ffmpeg.setFfmpegPath(
 //  "C:/Users/maxie/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.0.2-essentials_build/bin/ffmpeg.exe"
 //);
+
+exports.uploadVideo = async (req, res) => {
+  console.log("trying to upload");
+  uploadLogic.uploadVideo(req, res);
+}
 
 exports.getAllVideos = async (req, res) => {
   try {
@@ -144,100 +149,6 @@ exports.likeVideo = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-exports.uploadVideo = async (req, res) => {
-  try {
-    const originalVideoPath = req.file.path;
-    const outputVideoPath = path.join(
-      path.dirname(originalVideoPath),
-      `resized-${req.file.filename}`
-    );
-    console.log(req.body);
-    // Use ffmpeg to get video metadata (resolution)
-    ffmpeg.ffprobe(originalVideoPath, async (err, metadata) => {
-      if (err) {
-        console.error("Error getting video metadata:", err);
-        return res.status(500).json({ msg: "Error processing video metadata" });
-      }
-
-      const { width, height } = metadata.streams[0];
-      console.log(`Original video resolution: ${width}x${height}`);
-
-      // Check if the video resolution is greater than 1920x1080
-      if (width > 1080 || height > 1920) {
-        console.log("Resizing video to Full HD (1920x1080)");
-
-        // Use ffmpeg to resize the video
-        ffmpeg(originalVideoPath)
-          .size("1080x1920")
-          .output(outputVideoPath)
-          .on("end", async () => {
-            console.log("Video resized successfully");
-
-            try {
-              // Save the resized video information to the database
-              const newVideo = new Video({
-                title: req.body.title,
-                videoUrl: `/uploads/videos/resized-${req.file.filename}`,
-                userToken: req.body.userToken, // Ensure this is correctly passed
-                description: req.body.description, // Ensure this is correctly passed
-                likes: 0,
-                dislikes: 0,
-                challenge: req.body.challengeId,
-              });
-              await newVideo.save();
-              await Challenge.findByIdAndUpdate(req.body.challengeId, {
-                $inc: { videoCount: 1 },
-              });
-              // Attempt to delete the original video after a small delay
-              setTimeout(() => {
-                fs.unlink(originalVideoPath, (err) => {
-                  if (err) {
-                    console.error("Error deleting original video file:", err);
-                  } else {
-                    console.log("Original video file deleted successfully");
-                  }
-                });
-              }, 1000); // 1 second delay
-
-              res.status(201).json(newVideo);
-            } catch (error) {
-              console.error("Error saving resized video:", error);
-              res.status(500).json({ msg: "Error saving resized video" });
-            }
-          })
-          .on("error", (err) => {
-            console.error("Error resizing video:", err);
-            res.status(500).json({ msg: "Error resizing video" });
-          })
-          .run();
-      } else {
-        try {
-          const newVideo = new Video({
-            title: req.body.title,
-            videoUrl: `/uploads/videos/${req.file.filename}`,
-            userToken: req.body.userToken, // Ensure this is correctly passed
-            description: req.body.description, // Ensure this is correctly passed
-            likes: 0,
-            dislikes: 0,
-            challenge: req.body.challengeId,
-          });
-          await newVideo.save();
-          await Challenge.findByIdAndUpdate(req.body.challengeId, {
-            $inc: { videoCount: 1 },
-          });
-          res.status(201).json(newVideo);
-        } catch (error) {
-          console.error("Error saving video:", error);
-          res.status(500).json({ msg: "Error saving video" });
-        }
-      }
-    });
-  } catch (error) {
-    console.error("Error uploading video:", error);
-    res.status(500).json({ msg: "Error uploading video" });
-  }
-};
-
 async function userNameFromUserToken(token) {
   try {
     const userData = await User.findOne({ token });
@@ -265,10 +176,54 @@ async function challengeTitelFromChallengeId(_id) {
     return null;
   }
 }
+async function videoData(req, res, video) {
+  const videoData = video[0];
+  const token = videoData.userToken;
 
+  // Fetch the username using the token
+  const userName = await userNameFromUserToken(token);
+
+  if (!userName) {
+    console.log("User not found for the given token.");
+    return res.status(404).send("User not found.");
+  }
+  const videoId = video[0]["_id"];
+  const userId = req.body["userToken"];
+
+  // Await the Like query to check if the like exists
+  const like = await Like.findOne({ videoId, userId });
+
+  var liked = false;
+  if (like) {
+
+    liked = true;
+
+  }
+
+  const dislike = await Dislike.findOne({ videoId, userId });
+
+  var disliked = false;
+  if (dislike) {
+
+    disliked = true;
+
+  }
+  // Return video metadata as JSON
+  res.status(200).json({
+    videoid: videoData._id.toString(),
+    userName: userName,
+    description: videoData.description,
+    likes: videoData.likes,
+    dislikes: videoData.dislikes,
+    challenge: await challengeTitelFromChallengeId(videoData.challenge),
+    liked: liked,
+    disliked: disliked,
+
+  });
+}
 exports.getVideoDataIndex = async (req, res) => {
   try {
-    let videoIndex = parseInt(req.params.index, 10);
+    let videoIndex = parseInt(req.body["index"], 10);
     const totalVideos = await Video.countDocuments();
 
     if (totalVideos === 0) {
@@ -278,7 +233,6 @@ exports.getVideoDataIndex = async (req, res) => {
 
     videoIndex = videoIndex % totalVideos;
 
-    // Fetch video metadata
     const video = await Video.find().skip(videoIndex).limit(1).exec();
 
     if (!video.length) {
@@ -286,32 +240,17 @@ exports.getVideoDataIndex = async (req, res) => {
       return res.status(404).send("Video not found.");
     }
 
-    const videoData = video[0];
-    const token = videoData.userToken;
 
-    // Fetch the username using the token
-    const userName = await userNameFromUserToken(token);
 
-    if (!userName) {
-      console.log("User not found for the given token.");
-      return res.status(404).send("User not found.");
-    }
+    // Assuming videoData is a function that sends the video data
+    videoData(req, res, video);
 
-    // Return video metadata as JSON
-    res.status(200).json({
-      videoid: videoData._id.toString(),
-      userName: userName,
-      description: videoData.description,
-      likes: videoData.likes,
-      dislikes: videoData.dislikes,
-      challenge: await challengeTitelFromChallengeId(videoData.challenge),
-      // Include any other relevant fields
-    });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ msg: "Error fetching data" });
   }
 };
+
 
 
 exports.getVideoDataIndexWithChallenge = async (req, res) => {
@@ -334,28 +273,7 @@ exports.getVideoDataIndexWithChallenge = async (req, res) => {
       console.log("Video not found.");
       return res.status(404).send("Video not found.");
     }
-
-    const videoData = video[0];
-    const token = videoData.userToken;
-
-    // Fetch the username using the token
-    const userName = await userNameFromUserToken(token);
-
-    if (!userName) {
-      console.log("User not found for the given token.");
-      return res.status(404).send("User not found.");
-    }
-
-    // Return video metadata as JSON
-    res.status(200).json({
-      videoid: videoData._id.toString(),
-      userName: userName,
-      description: videoData.description,
-      likes: videoData.likes,
-      dislikes: videoData.dislikes,
-      challenge: await challengeTitelFromChallengeId(videoData.challenge),
-      // Include any other relevant fields
-    });
+    videoData(req, res, video);
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ msg: "Error fetching data" });
@@ -397,59 +315,8 @@ exports.getVideoWithIndex = async (req, res) => {
     }
 
     const videoUrl = video[0].videoUrl;
-    const videoFilename = path.basename(videoUrl);
-    const videoPath = path.resolve(
-      __dirname,
-      "../uploads/videos",
-      videoFilename
-    );
+    return res.status(201).send(videoUrl);
 
-    if (!fs.existsSync(videoPath)) {
-      return res.status(404).send("Video file not found.");
-    }
-
-    const stat = await fs.promises.stat(videoPath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
-
-    // Handle range request
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1]
-        ? parseInt(parts[1], 10)
-        : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
-
-      if (start >= fileSize) {
-        res
-          .status(416)
-          .send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
-        return;
-      }
-
-      const chunksize = end - start + 1;
-      const file = fs.createReadStream(videoPath, { start, end });
-
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunksize,
-        "Content-Type": "video/mp4",
-      };
-
-      res.writeHead(206, head);
-      file.pipe(res);
-    } else {
-      // If no range header, send the entire video file
-      const head = {
-        "Content-Length": fileSize,
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(200, head);
-      fs.createReadStream(videoPath).pipe(res);
-    }
   } catch (error) {
     console.error("Error fetching video:", error);
     res.status(500).json({ msg: "Error fetching video", error: error.message });

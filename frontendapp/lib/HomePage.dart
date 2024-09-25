@@ -18,7 +18,7 @@ class Homepage extends StatelessWidget {
       Startpage(),
       UploadVideoPage(),
       VideoStreamPage(),
-      Userscreen(),
+      UserScreen(),
     ];
   }
 

@@ -19,7 +19,7 @@ router.post("/like", videoController.likeVideo);
 router.post("/dislike", videoController.dislikeVideo);
 router.get("/video/:index", videoController.getVideoWithIndex);
 router.get("/videoWithChallenge/:index/:challengeId", videoController.getVideoWithIndexAndChallange);
-router.get("/videoData/:index", videoController.getVideoDataIndex);
+router.post("/videoData", videoController.getVideoDataIndex);
 router.get("/videoDataWithChallenge/:index/:challengeId", videoController.getVideoDataIndexWithChallenge);
 router.get("/getAll", videoController.getAllVideos);
 

@@ -10,4 +10,4 @@ router.get("/getAll", controller.getAllUsers);
 router.get("/deleteAllUsers", controller.deleteAllUsers);
 router.post("/", controller.getUserData);
 
-module.exports = router;
+module.exports = router;    

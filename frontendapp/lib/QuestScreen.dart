@@ -107,6 +107,9 @@ class _QuestscreenState extends State<Questscreen> {
                       onPressed: () async {
                         await _authService.createChallenge(
                             titelController.text, descriptionController.text);
+                        setState(() {
+                          _challenges = _authService.fetchChallenges();
+                        });
                       },
                     ),
                   ),

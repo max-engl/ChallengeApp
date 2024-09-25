@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:frontendapp/UserScreen.dart';
 import 'package:frontendapp/services/auth_service.dart';
+import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -21,6 +23,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
   final AuthService _authService = AuthService();
   VideoPlayerController? _currentController;
   int _currentPage = 0;
+  String pictureUrl = 'https://placehold.co/200x200';
   String _currentUserName = "None";
   @override
   void initState() {
@@ -31,9 +34,16 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
 
   Future<void> getVideoMetaData(int index) async {
     var ip = _authService.baseUrl;
-    final metadataUrl = "$ip/api/videos/videoData/$index";
+    final metadataUrl = "$ip/api/videos/videoData";
 
-    final response = await http.get(Uri.parse(metadataUrl));
+    final response = await http.post(
+      Uri.parse(metadataUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userToken': await _authService.getToken(),
+        "index": index,
+      }),
+    );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
 
@@ -44,9 +54,17 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           'description': data['description'] ?? 'No description',
           'likes': data['likes'] ?? 0,
           'dislikes': data['dislikes'] ?? 0,
-          'challenge': data['challenge'] ?? "KEINE"
+          'challenge': data['challenge'] ?? "KEINE",
+          'liked': data["liked"] ?? false,
+          'disliked': data["disliked"] ?? false,
         };
         _currentUserName = data['userName'];
+        if (_currentUserName.isNotEmpty) {
+          pictureUrl = '$ip/api/user/profile-pic/$_currentUserName';
+        } else {
+          pictureUrl =
+              'https://placehold.co/200x200'; // fallback in case URL is invalid
+        }
       });
     } else {
       print("Failed to load video metadata");
@@ -61,11 +79,37 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
     getVideoMetaData(_videoIndices[0]);
   }
 
-  void _loadController(int index) {
+  Future<String?> fetchVideoUrlByIndex(int index) async {
+    var ip = _authService.baseUrl;
+    final url = Uri.parse(
+        '$ip/api/videos/video/$index'); // Modify the endpoint if necessary
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 201) {
+        return response
+            .body; // Assuming the video URL is returned as the response body
+      } else if (response.statusCode == 404) {
+        print("Video not found");
+        return null;
+      } else if (response.statusCode == 405) {
+        print("No videos available");
+        return null;
+      } else {
+        print("Unexpected error: ${response.statusCode}");
+        return null;
+      }
+    } catch (error) {
+      print("Error fetching video: $error");
+      return null;
+    }
+  }
+
+  Future<void> _loadController(int index) async {
     if (_controllers.containsKey(index)) return;
 
     var ip = _authService.baseUrl;
-    final videoUrl = "$ip/api/videos/video/$index";
+    final videoUrl = await fetchVideoUrlByIndex(index) ?? "";
 
     final controller = VideoPlayerController.network(videoUrl);
     controller.addListener(() {
@@ -105,12 +149,17 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           _currentPage = page;
         });
 
+        // Pause the current controller before switching
         _currentController?.pause();
+
+        // Play the next video
         _currentController = _controllers[_currentPage];
         _currentController?.play();
 
+        // Load the new video's metadata
         getVideoMetaData(_videoIndices[page]);
 
+        // Preload the next and previous videos
         if (!_controllers.containsKey(page - 1) && page - 1 >= 0) {
           _loadController(_videoIndices[page - 1]);
         }
@@ -119,6 +168,7 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           _loadController(_videoIndices[page + 1]);
         }
 
+        // Dispose of controllers that are too far from the current page
         for (var key in _controllers.keys.toList()) {
           if (key < page - 2 || key > page + 2) {
             _disposeController(key);
@@ -137,6 +187,40 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
           _currentController!.play();
         }
       });
+    }
+  }
+
+  void _likeVideo() async {
+    var ip = _authService.baseUrl;
+    final likeUrl = "$ip/api/videos/like/${_currentVideoData?['id']}";
+    try {
+      final response = await http.post(Uri.parse(likeUrl));
+      if (response.statusCode == 200) {
+        setState(() {
+          _currentVideoData?['likes'] += 1; // Update the likes count
+        });
+      } else {
+        print("Failed to like the video");
+      }
+    } catch (error) {
+      print("Error liking the video: $error");
+    }
+  }
+
+  void _dislikeVideo() async {
+    var ip = _authService.baseUrl;
+    final dislikeUrl = "$ip/api/videos/dislike/${_currentVideoData?['id']}";
+    try {
+      final response = await http.post(Uri.parse(dislikeUrl));
+      if (response.statusCode == 200) {
+        setState(() {
+          _currentVideoData?['dislikes'] += 1; // Update the dislikes count
+        });
+      } else {
+        print("Failed to dislike the video");
+      }
+    } catch (error) {
+      print("Error disliking the video: $error");
     }
   }
 
@@ -224,14 +308,51 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
             ),
             padding: const EdgeInsets.all(8.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                GestureDetector(
+                  onTap: () {
+                    PersistentNavBarNavigator.pushNewScreen(
+                      context,
+                      screen: UserScreen(
+                        username: _currentUserName,
+                      ),
+                      withNavBar: true, // OPTIONAL VALUE. True by default.
+                      pageTransitionAnimation:
+                          PageTransitionAnimation.cupertino,
+                    );
+                  },
+                  child: Container(
+                    width: 65.0,
+                    height: 65.0,
+                    decoration: BoxDecoration(
+                      color: const Color(0xff7c94b6),
+                      image: DecorationImage(
+                        image: NetworkImage(pictureUrl),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.all(Radius.circular(50.0)),
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2.0,
+                      ),
+                    ),
+                  ),
+                ),
+
+                SizedBox(
+                  height: 15,
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.thumb_up,
-                          color: Colors.white, size: 40),
+                      icon: _currentVideoData != null &&
+                              _currentVideoData?["liked"]
+                          ? const Icon(Icons.thumb_up,
+                              color: Colors.green, size: 40)
+                          : const Icon(Icons.thumb_up,
+                              color: Colors.white, size: 40),
                       onPressed: () async {
                         var success = await _authService
                             .likeVideo(_currentVideoData?["id"]);
@@ -253,8 +374,12 @@ class _VideoStreamPageState extends State<VideoStreamPage> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.thumb_down,
-                          color: Colors.white, size: 40),
+                      icon: _currentVideoData != null &&
+                              _currentVideoData?["disliked"]
+                          ? const Icon(Icons.thumb_down,
+                              color: Colors.red, size: 40)
+                          : const Icon(Icons.thumb_down,
+                              color: Colors.white, size: 40),
                       onPressed: () async {
                         var success = await _authService
                             .dislikeVideo(_currentVideoData?["id"]);
