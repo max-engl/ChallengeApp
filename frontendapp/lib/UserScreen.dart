@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:frontendapp/SettingsScreen.dart';
 import 'package:frontendapp/services/auth_service.dart';
+import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 class UserScreen extends StatefulWidget {
   final String? username; // Optional username parameter
@@ -12,24 +14,33 @@ class UserScreen extends StatefulWidget {
 
 class _UserScreenState extends State<UserScreen> {
   final AuthService _authService = AuthService();
+  bool isYourAccount = true; // Track if it's the user's account
   Map<String, dynamic> userInfo = {
     "username": "None",
-    "profilePicture": null, // Key to match backend response
+    "profilePicture": null,
   };
+  List<dynamic> videos = []; // Store video data (thumbnails)
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    loadData(); // Load data initially
   }
 
   Future<void> loadData() async {
     try {
-      final data = await _authService.loadUserData();
+      print("Loading data..."); // Debugging print statemen
+      isYourAccount = widget.username == null;
+      String name = "KEINER";
+      if (!isYourAccount) {
+        name = widget.username ?? "KEINER";
+      }
+      final data = await _authService.loadUserData(name); // Fetch user data
       setState(() {
-        // Use passed username if available, otherwise use the backend data or default to 'None'
+        isYourAccount = widget.username == null; // Update based on username
         userInfo['username'] = widget.username ?? data['username'] ?? "None";
         userInfo['profilePicture'] = data['profilePicture'];
+        videos = data['videos'] ?? []; // Load the videos (thumbnails)
       });
     } catch (e) {
       print('Error loading user data: $e');
@@ -51,114 +62,91 @@ class _UserScreenState extends State<UserScreen> {
           style:
               const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
         ),
+        actions: [
+          // Conditionally display the action based on username
+          if (isYourAccount)
+            IconButton(
+                onPressed: () {
+                  PersistentNavBarNavigator.pushNewScreen(
+                    context,
+                    screen: Settingsscreen(),
+                    withNavBar: true, // OPTIONAL VALUE. True by default.
+                    pageTransitionAnimation: PageTransitionAnimation.cupertino,
+                  );
+                },
+                icon: Icon(
+                  Icons.settings,
+                  color: Colors.grey,
+                ))
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Center(
-              child: SizedBox(
-                width: 100,
-                height: 100,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage:
-                      profilePicUrl != null && profilePicUrl.isNotEmpty
-                          ? NetworkImage(profilePicUrl)
-                          : const AssetImage('assets/default_profile.png')
-                              as ImageProvider,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: Text(
-                '@$username',
-                style: const TextStyle(
-                  fontSize: 24,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  children: const [
-                    Text(
-                      "12",
-                      style: TextStyle(color: Colors.white, fontSize: 26),
-                    ),
-                    Text(
-                      "Folgt",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 30),
-                Column(
-                  children: const [
-                    Text(
-                      "12",
-                      style: TextStyle(color: Colors.white, fontSize: 26),
-                    ),
-                    Text(
-                      "Follower",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 30),
-                Column(
-                  children: const [
-                    Text(
-                      "12",
-                      style: TextStyle(color: Colors.white, fontSize: 26),
-                    ),
-                    Text(
-                      "Likes",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: Colors.grey),
-            const SizedBox(height: 10),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-                childAspectRatio: 0.5625,
-              ),
-              itemCount: 8,
-              itemBuilder: (BuildContext context, int index) {
-                return Container(
-                  color: Colors.grey,
-                  height: 160,
-                  width: 90,
-                  child: const Center(
-                    child: Text(
-                      'Item',
-                      style: TextStyle(color: Colors.white),
-                    ),
+      body: RefreshIndicator(
+        onRefresh: loadData, // Call loadData when refreshing
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              Center(
+                child: SizedBox(
+                  width: 100,
+                  height: 100,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage:
+                        profilePicUrl != null && profilePicUrl.isNotEmpty
+                            ? NetworkImage(profilePicUrl)
+                            : const AssetImage('assets/default_profile.png')
+                                as ImageProvider,
                   ),
-                );
-              },
-            ),
-            ElevatedButton(
-                onPressed: () {
-                  _authService.logout();
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: Text(
+                  '@$username',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(color: Colors.grey),
+              const SizedBox(height: 10),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 7,
+                  crossAxisSpacing: 7,
+                  childAspectRatio: 0.5625,
+                ),
+                itemCount: videos.length, // Use the number of videos
+                itemBuilder: (BuildContext context, int index) {
+                  // Get the thumbnail URL for each video
+                  String thumbnailUrl = videos[index]['thumbnailUrl'] ?? '';
+
+                  return Container(
+                    color: Colors.grey,
+                    height: 160,
+                    width: 90,
+                    child: thumbnailUrl.isNotEmpty
+                        ? Image.network(thumbnailUrl, fit: BoxFit.cover)
+                        : const Center(
+                            child: Text(
+                              'No Thumbnail',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                  );
                 },
-                child: Text("logout"))
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,16 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:frontendapp/QuestScreen.dart';
+import 'package:frontendapp/services/auth_service.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
-class Startpage extends StatelessWidget {
+class Startpage extends StatefulWidget {
   const Startpage({super.key});
+
+  @override
+  State<Startpage> createState() => _StartpageState();
+}
+
+class _StartpageState extends State<Startpage> {
+  String userName = "Loading";
+
+  Future<void> loadData() async {
+    try {
+      print("Loading data..."); // Debugging print statement
+      final data =
+          await AuthService().loadUserData("KEINER"); // Fetch user data
+      setState(() {
+        userName = data['username'] ?? "None";
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadData(); // Load data initially
+  }
 
   @override
   Widget build(BuildContext context) {
     // Get screen width and height
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
-
+    var ip = AuthService().baseUrl;
+    var profilePicUrl =
+        userName != null ? "$ip/api/user/profile-pic/$userName" : null;
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(screenHeight * 0.15),
@@ -21,18 +50,23 @@ class Startpage extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: screenWidth * 0.09, // Responsive avatar size
+                backgroundImage:
+                    profilePicUrl != null && profilePicUrl.isNotEmpty
+                        ? NetworkImage(profilePicUrl)
+                        : const AssetImage('assets/default_profile.png')
+                            as ImageProvider,
               ),
               SizedBox(width: screenWidth * 0.05),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Hello",
+                    "Hallo",
                     style: TextStyle(
                         color: Colors.white, fontSize: screenWidth * 0.05),
                   ),
                   Text(
-                    "Max",
+                    userName,
                     style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,

@@ -124,7 +124,7 @@ class _QuestscreenState extends State<Questscreen> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
-                  "STIMME AB",
+                  "Alle Challenges",
                   style: TextStyle(color: Colors.grey),
                 ),
               ),

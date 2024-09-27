@@ -344,57 +344,14 @@ exports.getVideoWithIndexAndChallange = async (req, res) => {
       .skip(videoIndex)
       .limit(1)
       .exec();
-
     if (!video.length) {
-      console.log("Video not found for this challenge.");
-      return res.status(404).send("Video not found for this challenge.");
+      console.log("Video not found.");
+      return res.status(404).send("Video not found.");
     }
 
     const videoUrl = video[0].videoUrl;
-    const videoFilename = path.basename(videoUrl);
-    const videoPath = path.resolve(__dirname, "../uploads/videos", videoFilename);
+    return res.status(201).send(videoUrl);
 
-    if (!fs.existsSync(videoPath)) {
-      return res.status(404).send("Video file not found.");
-    }
-
-    const stat = await fs.promises.stat(videoPath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
-
-    // Handle range request (partial content)
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
-
-      if (start >= fileSize) {
-        return res.status(416).send(`Requested range not satisfiable: ${start} >= ${fileSize}`);
-      }
-
-      const chunksize = end - start + 1;
-      const file = fs.createReadStream(videoPath, { start, end });
-
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunksize,
-        "Content-Type": "video/mp4",
-      };
-
-      res.writeHead(206, head);
-      file.pipe(res);
-    } else {
-      // Serve the entire video if no range is specified
-      const head = {
-        "Content-Length": fileSize,
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(200, head);
-      fs.createReadStream(videoPath).pipe(res);
-    }
   } catch (error) {
     console.error("Error fetching video:", error);
     res.status(500).json({ msg: "Error fetching video", error: error.message });

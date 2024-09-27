@@ -8,7 +8,7 @@ import 'package:http_parser/http_parser.dart';
 
 class AuthService {
   final String baseUrl =
-      'http://192.168.178.88:3005'; // Replace with your actual API URL
+      'http://192.168.178.143:3005'; // Replace with your actual API URL
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -93,10 +93,14 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> loadUserData() async {
+  Future<Map<String, dynamic>> loadUserData(String username) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-    if (token != null) {
+    String? token = null;
+    if (username == "KEINER") {
+      token = prefs.getString('token');
+    }
+    print(username);
+    if (username == "KEINER") {
       // Fetch the user data from your API
       final response = await http.post(
         Uri.parse('$baseUrl/api/user'),
@@ -107,14 +111,34 @@ class AuthService {
       if (response.statusCode == 200) {
         final userData = jsonDecode(response.body);
         return {
-          "username": userData['userName'],
-          "profilePicUrl": userData['profilePicUrl'],
+          "username": userData['user']['userName'], // Access the correct key
+          "profilePicture": userData['user']
+              ['profilePicture'], // Access the correct key
+          "videos": userData['videos'], // Include videos
+        };
+      } else {
+        print('Failed to load user data');
+      }
+    } else {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/user'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"userName": username}),
+      );
+
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(response.body);
+        return {
+          "username": userData['user']['userName'], // Access the correct key
+          "profilePicture": userData['user']
+              ['profilePicture'], // Access the correct key
+          "videos": userData['videos'], // Include videos
         };
       } else {
         print('Failed to load user data');
       }
     }
-    return {};
+    return {}; // Return an empty Map if no token is available
   }
 
   // Register function with image upload

@@ -20,12 +20,6 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Auth Example',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: AuthWrapper(),
-      routes: {
-        '/login': (context) => LoginScreen(),
-        '/register': (context) => RegisterScreen(),
-        '/home': (context) => Homepage(),
-        '/upload': (context) => VideoStreamPage()
-      },
     );
   }
 }

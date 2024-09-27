@@ -19,7 +19,10 @@ app.use(
   "/uploads/videos",
   express.static(path.join(__dirname, "uploads/videos"))
 );
-
+app.use(
+  "/uploads/thumbnails",
+  express.static(path.join(__dirname, "uploads/videos"))
+);
 app.use(
   "/uploads/profile_pics",
   express.static(path.join(__dirname, "uploads/profile_pics"))
@@ -30,6 +33,6 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/login", loginRoutes);
 app.use("/api/user", userRoutes);
 const PORT = process.env.PORT || 3005;
-app.listen(PORT, "192.168.178.88", () => {
+app.listen(PORT, "192.168.178.143", () => {
   console.log(`Server running on port ${PORT}`);
 });

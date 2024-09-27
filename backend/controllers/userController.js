@@ -2,7 +2,7 @@ const User = require("../models/userModel");
 const upload = require("multer")();
 const path = require("path");
 const crypto = require("crypto");
-
+const Video = require("../models/videoModel")
 exports.getProfilePicture = async (req, res) => {
   try {
     const { userName } = req.params;
@@ -35,30 +35,43 @@ exports.getProfilePicture = async (req, res) => {
     return res.status(500).json({ msg: "Server error" });
   }
 };
+
+
 exports.getUserData = async (req, res) => {
   try {
-    const { userName, token, nickname } = req.body;
-    var user = null;
-
+    var { userName, token, nickname } = req.body;
+    let user = null;
+    console.log(userName, token);
+    // Fetch user data based on userName, token, or nickname
     if (userName) {
       user = await User.findOne({ userName }).select("-password -token");
-    }
-    if (token) {
+    } else if (token) {
       user = await User.findOne({ token }).select("-password -token");
-    }
-    if (nickname) {
+    } else if (nickname) {
       user = await User.findOne({ nickname }).select("-password -token");
     }
-    // Find the user by userName, but exclude the password and token fields
 
+    // If no user is found, return 404
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    // Send the user data without password and token
-    return res.status(200).json(user);
+    // Fetch only the videos uploaded by the user based on their userToken
+    const u = user.userName;
+    userToken = User.findOne({ u }).token; // Assuming the user has a 'token' field
+    console.log(u)
+    const videos = await Video.find({ token }).select("thumbnailUrl");
+    // Prepare the response
+    console.log(videos)
+    const response = {
+      user,    // User data (without password and token)
+      videos   // List of videos that match the user's userToken
+    };
+
+    // Return the user data along with user's video thumbnails
+    return res.status(200).json(response);
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching user data:", error);
     return res.status(500).json({ msg: "Server error" });
   }
 };

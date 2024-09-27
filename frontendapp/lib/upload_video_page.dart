@@ -17,7 +17,7 @@ class UploadVideoPage extends StatefulWidget {
 class _UploadVideoPageState extends State<UploadVideoPage> {
   File? _video;
   VideoPlayerController? _videoController;
-  bool _isUploading = false;
+  bool _isUploading = false; // Track upload status
   final AuthService _authService = AuthService();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -56,7 +56,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     if (_video == null) return;
 
     setState(() {
-      _isUploading = true;
+      _isUploading = true; // Show loading indicator
     });
 
     var ip = _authService.baseUrl;
@@ -65,7 +65,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
     request.files.add(await http.MultipartFile.fromPath('video', _video!.path));
     String? userToken = await _authService.getToken() ?? "no token";
     request.fields['title'] = _titleController.text;
-    Map<String, dynamic> userInfo = await _authService.loadUserData();
+    Map<String, dynamic> userInfo = await _authService.loadUserData("KEINER");
     request.fields["userToken"] = userToken;
     request.fields["description"] = _descriptionController.text;
     request.fields["challengeId"] = _selectedChallenge["id"];
@@ -76,11 +76,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
       print("Video uploaded successfully!");
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Uploaded successfully',
             textAlign: TextAlign.center, // Center the text
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.black, // Custom text color
               fontWeight: FontWeight.bold,
             ),
@@ -93,24 +93,32 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
             ),
           ), // Rounded top corners
           behavior: SnackBarBehavior.fixed, // Keeps the SnackBar at the bottom
-          duration: const Duration(
+          duration: Duration(
               seconds: 3), // Duration for how long the SnackBar will be shown
-          animation: CurvedAnimation(
-            parent: AnimationController(
-              duration: const Duration(milliseconds: 300),
-              vsync: ScaffoldMessenger.of(
-                  context), // Animation controller with a short duration
-            ),
-            curve: Curves.easeInOut, // Smooth animation curve
-          ),
         ),
       );
+
+      // Clear fields after successful upload
+      _clearFields();
     } else {
       print("Failed to upload video.");
     }
 
     setState(() {
-      _isUploading = false;
+      _isUploading = false; // Hide loading indicator
+    });
+  }
+
+  void _clearFields() {
+    setState(() {
+      _video = null;
+      _titleController.clear();
+      _descriptionController.clear();
+      _selectedChallenge = {};
+      if (_videoController != null) {
+        _videoController!.dispose();
+        _videoController = null;
+      }
     });
   }
 
@@ -152,11 +160,11 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: Color.fromARGB(255, 39, 39, 39),
+                    color: const Color.fromARGB(255, 39, 39, 39),
                   ),
                   child: _video == null
                       ? const Center(
-                          child: Text('No video selected',
+                          child: Text('Kein Video ausgewählt',
                               style: TextStyle(color: Colors.white)))
                       : _videoController != null &&
                               _videoController!.value.isInitialized
@@ -171,19 +179,19 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
               ),
               const SizedBox(height: 20),
               TextField(
-                style: TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey),
                 controller: _descriptionController,
                 decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.description, color: Colors.grey),
+                  prefixIcon: const Icon(Icons.description, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10.0),
                     borderSide: BorderSide.none,
                   ),
-                  labelText: 'Video Description',
-                  fillColor: Color.fromARGB(255, 39, 39, 39),
+                  labelText: 'Video Beschreibung',
+                  fillColor: const Color.fromARGB(255, 39, 39, 39),
                   filled: true,
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  labelStyle: TextStyle(color: Colors.grey),
+                  labelStyle: const TextStyle(color: Colors.grey),
                 ),
               ),
               const SizedBox(height: 20),
@@ -194,13 +202,14 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                       height: 50,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          backgroundColor:
+                              const Color.fromARGB(255, 39, 39, 39),
                           foregroundColor: Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                         ),
-                        icon: Icon(Icons.how_to_vote, color: Colors.grey),
+                        icon: const Icon(Icons.how_to_vote, color: Colors.grey),
                         label: Text(
                           _selectedChallenge["title"] ??
                               'Noch keine Challenge ausgewählt',
@@ -211,7 +220,7 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                   ),
                 ],
               ),
-              SizedBox(height: 50),
+              const SizedBox(height: 50),
               Row(
                 children: [
                   Expanded(
@@ -220,14 +229,15 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                       margin: const EdgeInsets.only(right: 10),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          backgroundColor:
+                              const Color.fromARGB(255, 39, 39, 39),
                           foregroundColor: Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                         ),
-                        icon: Icon(Icons.movie, color: Colors.grey),
-                        label: const Text('Select video'),
+                        icon: const Icon(Icons.movie, color: Colors.grey),
+                        label: const Text('Video wählen'),
                         onPressed: _pickVideo,
                       ),
                     ),
@@ -238,15 +248,21 @@ class _UploadVideoPageState extends State<UploadVideoPage> {
                       margin: const EdgeInsets.only(left: 10),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 39, 39, 39),
+                          backgroundColor:
+                              const Color.fromARGB(255, 39, 39, 39),
                           foregroundColor: Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                         ),
-                        icon: Icon(Icons.upload, color: Colors.grey),
-                        label: const Text('Upload Video'),
-                        onPressed: _uploadVideo,
+                        icon: const Icon(Icons.upload, color: Colors.grey),
+                        label: _isUploading
+                            ? const CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.grey),
+                              )
+                            : const Text('Hochladen'),
+                        onPressed: _isUploading ? null : _uploadVideo,
                       ),
                     ),
                   ),

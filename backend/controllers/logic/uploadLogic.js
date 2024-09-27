@@ -1,22 +1,49 @@
-const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const fs = require('fs');
-const ffmpeg = require('fluent-ffmpeg');
-const Video = require('./../../models/videoModel'); // Import your Video model
-const Challenge = require('./../../models/challengeModel'); // Import your Challenge model
 
+const ffmpeg = require('fluent-ffmpeg');
+const Video = require('./../../models/videoModel'); // Your Video model
+const Challenge = require('./../../models/challengeModel'); // Your Challenge model
+const { Storage } = require('@google-cloud/storage');
 // Firebase Admin initialization
 const serviceAccount = require("./../../helpmeapp-70d40-4f6fcdf96370.json");
 const admin = require("firebase-admin");
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: "gs://helpmeapp-70d40.appspot.com" // Update with your actual bucket
-});
 
-const bucket = admin.storage().bucket(); // Use Firebase Admin's bucket instance
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: "gs://helpmeapp-70d40.appspot.com" // Your Firebase bucket URL
+    });
+}
 
-// Video upload handler
+
+const bucket = admin.storage().bucket(); // Firebase Storage bucket instance
+
+// Function to generate a thumbnail
+function generateThumbnail(videoPath, outputDir, callback) {
+    const baseName = path.basename(videoPath, path.extname(videoPath)); // Get the base name without extension
+    const thumbnailFilename = `thumbnail-${baseName}.png`; // Create thumbnail filename
+
+    ffmpeg(videoPath)
+        .on('end', function () {
+            console.log('Thumbnail generated successfully');
+            callback(null, thumbnailFilename); // Return the generated filename
+        })
+        .on('error', function (err) {
+            console.error('Error generating thumbnail:', err);
+            callback(err);
+        })
+        .screenshots({
+            count: 1, // Number of thumbnails
+            folder: outputDir, // Save to this folder
+            size: '480x720', // Thumbnail size
+            filename: thumbnailFilename // Corrected filename
+        });
+}
+
+
+// Main video upload handler
 exports.uploadVideo = async (req, res) => {
     try {
         const originalVideoPath = req.file.path;
@@ -35,9 +62,9 @@ exports.uploadVideo = async (req, res) => {
             const { width, height } = metadata.streams[0];
             console.log(`Original video resolution: ${width}x${height}`);
 
-            // Check if the video resolution is greater than 1920x1080
+            // Check if the video resolution is greater than 1080x1920
             if (width > 1080 || height > 1920) {
-                console.log("Resizing video to Full HD (1920x1080)");
+                console.log("Resizing video to Full HD (1080x1920)");
 
                 // Use ffmpeg to resize the video
                 ffmpeg(originalVideoPath)
@@ -50,25 +77,19 @@ exports.uploadVideo = async (req, res) => {
                     .on("end", async () => {
                         console.log("Video resized successfully");
 
-                        // Upload resized video to Google Cloud Storage
-                        try {
-                            await uploadToStorage(outputVideoPath, req.body.title, req.body.description, req.body.userToken, req.body.challengeId, res);
+                        // Upload resized video and thumbnail
+                        await uploadToStorage(outputVideoPath, req.body.title, req.body.description, req.body.userToken, req.body.challengeId, res);
 
-                            // After successful upload, delete the resized video from the local system
-                            fs.unlink(outputVideoPath, (err) => {
-                                if (err) {
-                                    console.error("Error deleting resized video file:", err);
-                                } else {
-                                    console.log("Resized video file deleted successfully");
-                                }
-                            });
+                        // Delete the resized video from local storage
+                        fs.unlink(outputVideoPath, (err) => {
+                            if (err) {
+                                console.error("Error deleting resized video file:", err);
+                            } else {
+                                console.log("Resized video file deleted successfully");
+                            }
+                        });
 
-                        } catch (error) {
-                            console.error("Error uploading resized video:", error);
-                            res.status(500).json({ msg: "Error uploading resized video" });
-                        }
-
-                        // Attempt to delete the original video after a small delay
+                        // Attempt to delete the original video after a delay
                         setTimeout(() => {
                             fs.unlink(originalVideoPath, (err) => {
                                 if (err) {
@@ -84,23 +105,17 @@ exports.uploadVideo = async (req, res) => {
                         res.status(500).json({ msg: "Error resizing video" });
                     });
             } else {
-                // If the video doesn't need resizing, upload directly
-                try {
-                    await uploadToStorage(originalVideoPath, req.body.title, req.body.description, req.body.userToken, req.body.challengeId, res);
+                // If no resizing is needed, upload directly
+                await uploadToStorage(originalVideoPath, req.body.title, req.body.description, req.body.userToken, req.body.challengeId, res);
 
-                    // After successful upload, delete the original video from the local system
-                    fs.unlink(originalVideoPath, (err) => {
-                        if (err) {
-                            console.error("Error deleting original video file:", err);
-                        } else {
-                            console.log("Original video file deleted successfully");
-                        }
-                    });
-
-                } catch (error) {
-                    console.error("Error uploading video:", error);
-                    res.status(500).json({ msg: "Error uploading video" });
-                }
+                // Delete the original video from local storage
+                fs.unlink(originalVideoPath, (err) => {
+                    if (err) {
+                        console.error("Error deleting original video file:", err);
+                    } else {
+                        console.log("Original video file deleted successfully");
+                    }
+                });
             }
         });
     } catch (error) {
@@ -108,28 +123,59 @@ exports.uploadVideo = async (req, res) => {
         res.status(500).json({ msg: "Error uploading video" });
     }
 };
-
-// Function to upload the video to Google Cloud Storage and save info to MongoDB
 async function uploadToStorage(videoPath, title, description, userToken, challengeId, res) {
     const fileName = path.basename(videoPath);
-    const file = bucket.file(`videos/${fileName}`); // Set the path in the bucket
-    console.log("upload to storage");
+    const file = bucket.file(`videos/${fileName}`); // Video file destination in Firebase Storage
 
-    // Upload the video file
+    // Directory for thumbnails
+    const thumbnailDir = path.join(__dirname, '../../uploads/thumbnails');
+
+    // Ensure 'uploads/thumbnails' directory exists
+    if (!fs.existsSync(thumbnailDir)) {
+        fs.mkdirSync(thumbnailDir, { recursive: true });
+    }
+
+    // Generate the thumbnail
+    let thumbnailFilename;
+    await new Promise((resolve, reject) => {
+        generateThumbnail(videoPath, thumbnailDir, (err, generatedThumbnail) => {
+            if (err) {
+                console.error('Error generating thumbnail:', err);
+                reject(err);
+            } else {
+                thumbnailFilename = generatedThumbnail; // Corrected thumbnail filename
+                resolve();
+            }
+        });
+    });
+
+    // Upload the video to Firebase Storage
     await bucket.upload(videoPath, {
         destination: `videos/${fileName}`, // Destination in the bucket
-        metadata: { contentType: 'video/mp4' }, // Adjust as necessary for your video type
+        metadata: { contentType: 'video/mp4' }, // Adjust for video type
         public: true
     });
 
-    // Get public URL
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/videos/${fileName}`;
     console.log('Video uploaded successfully:', publicUrl);
 
-    // Save video information to MongoDB
+    // Upload the generated thumbnail
+    const thumbnailPath = path.join(thumbnailDir, thumbnailFilename); // Correct thumbnail path
+    const thumbnailFile = bucket.file(`thumbnails/${thumbnailFilename}`);
+    await bucket.upload(thumbnailPath, {
+        destination: `thumbnails/${thumbnailFilename}`, // Destination in Firebase
+        metadata: { contentType: 'image/png' },
+        public: true
+    });
+
+    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/thumbnails/${thumbnailFilename}`;
+    console.log('Thumbnail uploaded successfully:', thumbnailUrl);
+
+    // Save video and thumbnail info to MongoDB
     const newVideo = new Video({
         title: title,
         videoUrl: publicUrl,
+        thumbnailUrl: thumbnailUrl, // Thumbnail URL saved
         userToken: userToken,
         description: description,
         likes: 0,
