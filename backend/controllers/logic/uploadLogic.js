@@ -6,7 +6,7 @@ const Video = require('./../../models/videoModel'); // Your Video model
 const Challenge = require('./../../models/challengeModel'); // Your Challenge model
 const { Storage } = require('@google-cloud/storage');
 // Firebase Admin initialization
-const serviceAccount = require("./../../helpmeapp-70d40-4f6fcdf96370.json");
+const serviceAccount = require("./../../helpmeapp-70d40-3bd318596417.json");
 const admin = require("firebase-admin");
 
 

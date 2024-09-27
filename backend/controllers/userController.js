@@ -57,12 +57,12 @@ exports.getUserData = async (req, res) => {
     }
 
     // Fetch only the videos uploaded by the user based on their userToken
-    const u = user.userName;
-    userToken = User.findOne({ u }).token; // Assuming the user has a 'token' field
-    console.log(u)
-    const videos = await Video.find({ token }).select("thumbnailUrl");
+    userName = user.userName;
+    userToken = await User.findOne({ userName });
+    userToken = userToken.token;
+    const videos = await Video.find({ userToken }).select("thumbnailUrl");
     // Prepare the response
-    console.log(videos)
+    console.log(userName)
     const response = {
       user,    // User data (without password and token)
       videos   // List of videos that match the user's userToken
