@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const MONGO_URI =
-    "mongodb+srv://engldevmail:%40Anphi00008@cluster0.rmg3c.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+    "MONGODBURL";
 const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI, {
